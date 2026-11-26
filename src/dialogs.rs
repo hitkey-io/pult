@@ -35,6 +35,7 @@ pub enum PaletteAction {
     RenameProject,
     SplitProject,
     NewSubproject,
+    CloneSubproject,
     ToggleSidebar,
     ToggleInfo,
     Theme(ThemePref),
@@ -52,6 +53,8 @@ pub struct CurrentCommands {
     pub rename: Option<String>,
     /// "Split “X” into subprojects…" for an ordinary project, "New subproject in “X”…" for a subproject.
     pub subproject: Option<(String, PaletteAction)>,
+    /// "Clone “X”…" for a subproject whose conversation can be copied.
+    pub clone: Option<String>,
     /// Who Claude Code talks to now: the switch command offers the other one.
     pub provider: crate::models::Provider,
 }
@@ -107,6 +110,9 @@ pub fn open_palette(
     commands.push((t("common.add_folders"), "⌘O", PaletteAction::AddFolders));
     if let Some((label, action)) = current.subproject {
         commands.push((&*label.leak(), "", action));
+    }
+    if let Some(label) = current.clone {
+        commands.push((&*label.leak(), "", PaletteAction::CloneSubproject));
     }
     if !pause_label.is_empty() {
         commands.push((pause_label, "⇧⌘P", PaletteAction::TogglePause));
@@ -592,6 +598,45 @@ pub fn open_new_subproject(
         move |values, abouts, window, cx| {
             workspace
                 .update(cx, |this, cx| this.create_subproject(&folder, &values[0], &abouts[0], window, cx))
+                .unwrap_or(false)
+        },
+        window,
+        cx,
+    );
+}
+
+/// "Clone “X”…": a new subproject in the same project that starts from a copy of `source`'s conversation.
+/// `busy` — Claude is answering in the source right now: the answer in progress stays only there.
+#[allow(clippy::too_many_arguments)]
+pub fn open_clone_subproject(
+    workspace: WeakEntity<Workspace>,
+    source: String,
+    source_name: String,
+    folder: String,
+    taken: Vec<String>,
+    busy: bool,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let name = cx.new(|cx| InputState::new(window, cx));
+    let about = cx.new(|cx| InputState::new(window, cx).placeholder(t("dialogs.about_example_new")));
+    preset_names(std::slice::from_ref(&name), window, cx);
+    preset_abouts(std::slice::from_ref(&about), window, cx);
+    let fields = SubprojectFields { folder: folder.clone(), taken, inputs: vec![name], abouts: vec![about] };
+    let mut description = tr!("dialogs.clone_description", folder = folder, name = source_name);
+    if busy {
+        description.push(' ');
+        description.push_str(t("dialogs.clone_busy"));
+    }
+    subproject_dialog(
+        tr!("dialogs.clone_title", name = source_name),
+        description,
+        vec![t("dialogs.name")],
+        fields,
+        t("dialogs.clone_ok"),
+        move |values, abouts, window, cx| {
+            workspace
+                .update(cx, |this, cx| this.clone_subproject(&source, &values[0], &abouts[0], window, cx))
                 .unwrap_or(false)
         },
         window,

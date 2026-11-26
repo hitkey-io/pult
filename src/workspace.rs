@@ -32,7 +32,7 @@ use gpui_kit::{
 };
 
 use crate::actions::{
-    AddFolders, ClearTerminal, CopyPath, GoBack, GoForward, NewProject, NewSubproject, OpenModels, OpenPalette, OpenSettings, PauseOthers,
+    AddFolders, ClearTerminal, CloneSubproject, CopyPath, GoBack, GoForward, NewProject, NewSubproject, OpenModels, OpenPalette, OpenSettings, PauseOthers,
     RemoveProject, RenameProject, RevealInFinder, SplitProject, SwitchSession, ToggleInfo, TogglePause, ToggleSidebar, ToggleTheme, UseClaude, UseGlm, ZoomIn,
     ZoomOut, ZoomReset,
 };
@@ -2280,10 +2280,14 @@ impl Workspace {
                 None
             }
         });
+        let clone = self
+            .current()
+            .filter(|project| self.can_clone(project))
+            .map(|project| tr!("workspace.clone_name_cmd", name = project.name()));
         dialogs::open_palette(
             cx.entity().downgrade(),
             projects,
-            dialogs::CurrentCommands { pause, rename, subproject, provider: self.provider },
+            dialogs::CurrentCommands { pause, rename, subproject, clone, provider: self.provider },
             self.sidebar_open,
             self.info_open,
             window,
@@ -2307,6 +2311,7 @@ impl Workspace {
             PaletteAction::RenameProject => self.rename_project(&RenameProject, window, cx),
             PaletteAction::SplitProject => self.split_current(&SplitProject, window, cx),
             PaletteAction::NewSubproject => self.new_subproject(&NewSubproject, window, cx),
+            PaletteAction::CloneSubproject => self.clone_current(&CloneSubproject, window, cx),
             PaletteAction::Theme(pref) => self.set_theme(pref, cx),
         }
     }
@@ -2429,6 +2434,106 @@ impl Workspace {
                 false
             }
         }
+    }
+
+    /// A subproject's conversation can be copied: it has one here, its folder is in place, and the session
+    /// isn't running on another computer or still starting (the copy could miss the latest turns).
+    fn can_clone(&self, project: &Project) -> bool {
+        let Some(session) = project.session() else {
+            return false;
+        };
+        project.sub().is_some()
+            && project.exists()
+            && !self.starting.contains(project.id())
+            && self.elsewhere(project).is_none()
+            && sessions::has_transcript(project.path(), session)
+    }
+
+    /// "Clone…": the window asking for the new subproject's name.
+    fn clone_current(&mut self, _: &CloneSubproject, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(project) = self.current().cloned().filter(|project| self.can_clone(project)) else {
+            return;
+        };
+        let busy = matches!(self.activity(&project), Some(Activity::Working | Activity::Waiting));
+        dialogs::open_clone_subproject(
+            cx.entity().downgrade(),
+            project.id().to_string(),
+            project.name().to_string(),
+            project.folder().to_string(),
+            self.store.subs(project.folder()),
+            busy,
+            window,
+            cx,
+        );
+    }
+
+    /// A new subproject in the same project that starts from a copy of `source`'s conversation and goes on
+    /// separately; `source` is left as it is.
+    pub(crate) fn clone_subproject(
+        &mut self,
+        source: &str,
+        name: &str,
+        about: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(original) = self.project(source).cloned() else {
+            return false;
+        };
+        let Some(session) = original.session().map(str::to_string) else {
+            return false;
+        };
+        let id = match self.store.add_sub(original.folder(), name) {
+            Ok(id) => id,
+            Err(message) => {
+                window.push_notification(message, cx);
+                return false;
+            }
+        };
+        self.store.set_about(&id, about);
+        crate::journal::ensure_hooks();
+        self.reload();
+        self.select(&id, window, cx);
+        let Some(project) = self.project(&id).cloned() else {
+            return true;
+        };
+        self.starting.insert(id.clone());
+        let (cwd, session_name) = (project.path().to_path_buf(), project.session_name());
+        let (new_name, source_name) = (project.name().to_string(), original.name().to_string());
+        cx.spawn_in(window, async move |this, cx| {
+            let result = cx
+                .background_spawn({
+                    let cwd = cwd.clone();
+                    async move { sessions::clone_session(&cwd, &session, &session_name) }
+                })
+                .await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                let id = this.live_key(&id);
+                this.starting.remove(&id);
+                match result {
+                    Ok(copy) => {
+                        this.store.bind(&id, &copy);
+                        this.bound_here.insert(copy);
+                        this.reload();
+                        window.push_notification(
+                            tr!("workspace.cloned_from", name = new_name, source = source_name),
+                            cx,
+                        );
+                    }
+                    Err(StartError::NotTrusted) => {
+                        this.errors.insert(id.clone(), (Failure::New, t("sessions.folder_not_trusted").into()));
+                    }
+                    Err(StartError::Failed(message)) => {
+                        this.errors.insert(id.clone(), (Failure::New, message));
+                    }
+                }
+                this.refresh(cx);
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+        true
     }
 
     /// Write what the subproject does; the neighbours' sessions will read it.
@@ -2699,6 +2804,7 @@ impl Workspace {
         let has_project = current.is_some();
         let title: SharedString = current.map(Project::title).unwrap_or_else(|| t("common.pult").into()).into();
         let is_sub = current.is_some_and(|project| project.sub().is_some());
+        let can_clone = current.is_some_and(|project| self.can_clone(project));
         let can_split = current.is_some_and(|project| project.sub().is_none() && project.exists() && project.session().is_some());
         let (pause_label, can_pause) = current.map(|project| self.pause_command(project)).unwrap_or((t("workspace.pause"), false));
         let can_switch = current.is_some_and(Project::exists);
@@ -2773,6 +2879,9 @@ impl Workspace {
                                         menu.menu(t("common.split_into_subprojects"), Box::new(SplitProject))
                                     })
                                     .when(is_sub, |menu| menu.menu(t("common.new_subproject"), Box::new(NewSubproject)))
+                                    .when(is_sub, |menu| {
+                                        menu.menu_with_disabled(t("common.clone_subproject"), Box::new(CloneSubproject), !can_clone)
+                                    })
                                     .menu(
                                         if is_sub { t("common.remove_subproject") } else { t("common.remove_from_pult") },
                                         Box::new(RemoveProject),
@@ -2910,6 +3019,7 @@ impl Workspace {
             None
         };
         let is_sub = project.sub().is_some();
+        let can_clone = self.can_clone(project);
         let can_split = !is_sub && !missing && project.session().is_some();
         let item = SidebarMenuItem::new(project.name().to_string())
             .accessibility_label(format!("{}, {tip}", project.name()))
@@ -2961,6 +3071,9 @@ impl Workspace {
                         .separator()
                         .when(can_split, |menu| menu.menu(t("common.split_into_subprojects"), Box::new(SplitProject)))
                         .when(is_sub, |menu| menu.menu(t("common.new_subproject"), Box::new(NewSubproject)))
+                        .when(is_sub, |menu| {
+                            menu.menu_with_disabled(t("common.clone_subproject"), Box::new(CloneSubproject), !can_clone)
+                        })
                         .menu_with_disabled(t("common.rename_project"), Box::new(RenameProject), missing)
                         .menu(
                             if is_sub { t("common.remove_subproject") } else { t("common.remove_from_pult") },
@@ -4384,6 +4497,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::rename_project))
             .on_action(cx.listener(Self::split_current))
             .on_action(cx.listener(Self::new_subproject))
+            .on_action(cx.listener(Self::clone_current))
             .on_action(cx.listener(Self::use_claude))
             .on_action(cx.listener(Self::use_glm))
             .on_action(cx.listener(Self::open_models))

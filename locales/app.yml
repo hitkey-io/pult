@@ -1,6 +1,9 @@
 _version: 2
 
 common:
+  clone_subproject:
+    en: "Clone…"
+    ru: "Клонировать…"
   split_into_subprojects:
     en: "Split into subprojects…"
     ru: "Разделить на подпроекты…"
@@ -99,6 +102,18 @@ common:
     ru: "Повторить"
 
 dialogs:
+  clone_title:
+    en: "Clone “%{name}”"
+    ru: "Клонировать «%{name}»"
+  clone_description:
+    en: "A new subproject in “%{folder}” starts from a copy of the “%{name}” conversation: Claude remembers everything said so far. From then on they go separately; “%{name}” stays as it is."
+    ru: "Новый подпроект в «%{folder}» начнёт с копии переписки «%{name}»: Claude помнит всё, что было до сих пор. Дальше они идут отдельно, «%{name}» не меняется."
+  clone_busy:
+    en: "Claude is answering right now: the copy gets the conversation up to this moment, the answer in progress stays only in the original."
+    ru: "Claude сейчас отвечает: в копию попадёт переписка до этого момента, ответ, который идёт, останется только в исходном."
+  clone_ok:
+    en: "Clone"
+    ru: "Клонировать"
   about_example_first:
     en: "What it does: orders and stock in reports"
     ru: "Чем занимается: заявки товара и остатки в отчётах"
@@ -470,6 +485,15 @@ rename:
     ru: "Закройте эти сессии там — одну сессию нельзя переносить, пока она открыта."
 
 sessions:
+  folder_not_trusted:
+    en: "Claude Code doesn’t trust this folder yet: open a session in it once."
+    ru: "Claude Code ещё не доверяет этой папке: откройте в ней сессию один раз."
+  no_conversation_to_copy:
+    en: "There is no conversation to copy yet."
+    ru: "Переписки для копии пока нет."
+  couldn_t_copy_conversation:
+    en: "Couldn’t copy the conversation: %{error}"
+    ru: "Не удалось скопировать переписку: %{error}"
   claude_code_not_found_install:
     en: "Claude Code not found. Install it and sign in, then try again."
     ru: "Claude Code не найден. Установите его и войдите в аккаунт, потом повторите."
@@ -962,6 +986,12 @@ update:
     ru: "Пульт %{version} встанет на место %{bundle} и откроется"
 
 workspace:
+  clone_name_cmd:
+    en: "Clone “%{name}”…"
+    ru: "Клонировать «%{name}»…"
+  cloned_from:
+    en: "“%{name}” starts from a copy of the “%{source}” conversation."
+    ru: "«%{name}» начат с копии переписки «%{source}»."
   where_are_your_projects:
     en: "Where are your projects?"
     ru: "Где лежат ваши проекты?"

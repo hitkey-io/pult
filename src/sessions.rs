@@ -597,6 +597,82 @@ pub fn start_new(cwd: &Path, name: &str) -> Result<String, StartError> {
         .ok_or_else(|| StartError::Failed(t("sessions.claude_code_didn_t_return").into()))
 }
 
+/// A copy of `source` under a new id, started in the background as `name` in `cwd`: the new session remembers
+/// everything said so far and goes on separately. Returns the new full id.
+///
+/// The transcript is copied by Pult rather than with `--fork-session`: a forked background session writes its
+/// transcript only after its first answer, so a fork paused before that would lose the conversation. A line
+/// still being written (the source is answering) is left out.
+pub fn clone_session(cwd: &Path, source: &str, name: &str) -> Result<String, StartError> {
+    let from = transcript_path(cwd, source).ok_or_else(|| StartError::Failed(t("sessions.no_conversation_to_copy").into()))?;
+    let id = new_session_id().map_err(|error| StartError::Failed(tr!("sessions.couldn_t_copy_conversation", error = error)))?;
+    copy_transcript(&from, &transcripts_dir(cwd), source, &id)
+        .map_err(|error| StartError::Failed(tr!("sessions.couldn_t_copy_conversation", error = error)))?;
+    let short = run_background(cwd, &["--resume", &id, "--bg", "-n", name, SKIP_PERMISSIONS, SHARED_CHECKOUT[0], SHARED_CHECKOUT[1]])?;
+    for _ in 0..10 {
+        if let Some(agents) = try_agents()
+            && let Some(agent) = agents.iter().find(|agent| agent.id.as_deref() == Some(short.as_str()))
+        {
+            return Ok(agent.session_id.clone());
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    Err(StartError::Failed(t("sessions.started_but_not_listed").into()))
+}
+
+/// Write `from` (the conversation of `source`) into `dir` as `<id>.jsonl`, the session id in each record
+/// replaced, and copy the session's own folder (subagents, tool results) beside it.
+fn copy_transcript(from: &Path, dir: &Path, source: &str, id: &str) -> std::io::Result<()> {
+    fs::create_dir_all(dir)?;
+    let text = fs::read_to_string(from)?;
+    let mut out = String::with_capacity(text.len());
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        let Ok(mut record) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if record.get("sessionId").and_then(|value| value.as_str()) == Some(source) {
+            record["sessionId"] = serde_json::Value::String(id.to_string());
+        }
+        out.push_str(&record.to_string());
+        out.push('\n');
+    }
+    let target = dir.join(format!("{id}.jsonl"));
+    fs::write(&target, out)?;
+    if let Some(folder) = from.parent().map(|parent| parent.join(source))
+        && folder.is_dir()
+        && let Err(error) = copy_dir(&folder, &dir.join(id))
+    {
+        let _ = fs::remove_file(&target);
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &to.join(entry.file_name()))?;
+        } else if kind.is_file() {
+            fs::copy(entry.path(), to.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+/// A random (version 4) UUID, the form Claude Code uses for session ids.
+fn new_session_id() -> std::io::Result<String> {
+    use std::io::Read as _;
+    let mut bytes = [0u8; 16];
+    fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    Ok(format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32]))
+}
+
 /// Start the pinned session in the background from the same place.
 ///
 /// Claude Code still keeping a record of the session (crashed — `failed`, finished — `done`, unloaded) counts it
@@ -1175,6 +1251,49 @@ mod activity_tests {
         assert!(parse_live(br#"{"pid":1}"#).is_none(), "no session id — not a session");
         assert!(parse_live(b"not json").is_none());
         assert!(parse_live(br#"{"pid":-4,"sessionId":"s"}"#).is_none());
+    }
+
+    #[test]
+    fn a_copied_conversation_carries_the_new_id_and_the_session_folder() {
+        let base = std::env::temp_dir().join(format!("pult-clone-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let (from_dir, to_dir) = (base.join("from"), base.join("to"));
+        fs::create_dir_all(from_dir.join("old/subagents")).unwrap();
+        fs::write(from_dir.join("old/subagents/a.jsonl"), "{}\n").unwrap();
+        let from = from_dir.join("old.jsonl");
+        fs::write(
+            &from,
+            "{\"type\":\"user\",\"sessionId\":\"old\",\"text\":\"hi\"}\n\n{\"type\":\"summary\"}\n{\"type\":\"assistant\",\"sessionId\":\"old\",\"te",
+        )
+        .unwrap();
+        let id = new_session_id().unwrap();
+        assert_eq!(id.len(), 36);
+        assert_eq!(&id[14..15], "4");
+        copy_transcript(&from, &to_dir, "old", &id).unwrap();
+        let copy = fs::read_to_string(to_dir.join(format!("{id}.jsonl"))).unwrap();
+        let lines: Vec<&str> = copy.lines().collect();
+        assert_eq!(lines.len(), 2, "the line still being written is left out");
+        assert!(lines[0].contains(&id) && !lines[0].contains("\"old\""));
+        assert_eq!(lines[1], "{\"type\":\"summary\"}");
+        assert!(to_dir.join(&id).join("subagents/a.jsonl").is_file());
+        assert!(fs::read_to_string(&from).unwrap().contains("\"sessionId\":\"old\""), "the original is untouched");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// A real clone of an existing session: `PULT_CLONE_DIR=<trusted folder> PULT_CLONE_SOURCE=<session id>
+    /// cargo test live_clone -- --ignored --nocapture`. Starts the copy in the background and stops it again.
+    #[test]
+    #[ignore]
+    fn live_clone() {
+        let dir = PathBuf::from(std::env::var("PULT_CLONE_DIR").unwrap());
+        let source = std::env::var("PULT_CLONE_SOURCE").unwrap();
+        let copy = clone_session(&dir, &source, "pult-clone-check").unwrap();
+        println!("copy: {copy}");
+        assert_ne!(copy, source);
+        assert!(has_transcript(&dir, &copy));
+        let agent = agents().into_iter().find(|agent| agent.session_id == copy).expect("listed");
+        assert_eq!(agent.name.as_deref(), Some("pult-clone-check"));
+        stop(agent.id.as_deref().unwrap());
     }
 
     #[test]

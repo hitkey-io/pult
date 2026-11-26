@@ -1,0 +1,1 @@
+Clone a subproject: a new subproject starts from a copy of its conversation and goes on separately.
