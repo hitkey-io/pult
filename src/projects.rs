@@ -364,6 +364,9 @@ fn today() -> String {
 
 pub struct ProjectStore {
     root: PathBuf,
+    /// The main folder was chosen by the person (or projects already live in it). Until then `root` is only a
+    /// default, nothing is created in it, and nothing from other computers is placed there.
+    root_chosen: bool,
     state_file: Option<PathBuf>,
     entries: Vec<Entry>,
     removed: BTreeMap<String, u64>,
@@ -409,8 +412,10 @@ impl ProjectStore {
                 .map(|path| Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: None, sub: None, about: None, about_at: None })
                 .collect(),
         };
+        let root_chosen = saved.root.is_some() || !entries.is_empty();
         let store = Self {
             root,
+            root_chosen,
             state_file,
             entries,
             removed: saved.removed,
@@ -436,8 +441,29 @@ impl ProjectStore {
         path.parent() == Some(self.root.as_path())
     }
 
+    /// The main folder hasn't been chosen yet (a first launch): Pult asks for it before creating or adding projects.
+    pub fn needs_root(&self) -> bool {
+        !self.root_chosen
+    }
+
+    /// Make `path` the main folder without moving anything. Only while Pult has no projects: projects live in
+    /// the main folder, so with projects the folder is moved instead (`move_root`).
+    pub fn choose_root(&mut self, path: PathBuf) -> Result<(), String> {
+        if !self.entries.is_empty() {
+            return Err(t("projects.main_folder_has_projects").into());
+        }
+        if !path.is_dir() {
+            return Err(tr!("projects.folder_not_found_path", path = display_path(&path)));
+        }
+        self.root = path;
+        self.root_chosen = true;
+        self.save();
+        Ok(())
+    }
+
     /// The main folder was renamed or moved: the project paths inside follow it.
     pub fn move_root(&mut self, to: PathBuf) {
+        self.root_chosen = true;
         let from = std::mem::replace(&mut self.root, to.clone());
         for entry in &mut self.entries {
             if let Ok(rest) = entry.path.strip_prefix(&from) {
@@ -615,6 +641,7 @@ impl ProjectStore {
             }
         }
         if !added.is_empty() {
+            self.root_chosen = true;
             self.save();
         }
         added
@@ -704,6 +731,9 @@ impl ProjectStore {
     /// created by Pult itself, empty: there is no need to pick the folder by hand. The code
     /// is pulled in later (`git clone` into an empty folder works). Only folders directly in the main one.
     pub fn ensure_folders(&self) -> Vec<String> {
+        if !self.root_chosen {
+            return Vec::new();
+        }
         self.entries
             .iter()
             .filter(|entry| entry.path.parent() == Some(self.root.as_path()) && !entry.path.exists())
@@ -723,6 +753,10 @@ impl ProjectStore {
     /// written yet) or one that hasn't arrived yet can't be started by Claude Code; Pult skips it while so.
     pub fn adopt_shared(&mut self, dir: &Path, usable: impl Fn(&str) -> bool) -> Adopted {
         let mut adopted = Adopted::default();
+        // Before the main folder is chosen there is nowhere to put projects from other computers.
+        if !self.root_chosen {
+            return adopted;
+        }
         let Ok(files) = fs::read_dir(dir) else {
             return adopted;
         };
@@ -995,7 +1029,7 @@ impl ProjectStore {
             theme: self.theme,
             language: self.language,
             window: self.window,
-            root: Some(self.root.clone()),
+            root: self.root_chosen.then(|| self.root.clone()),
             projects: Some(self.entries.clone()),
             hidden: BTreeSet::new(),
             terminal_font_size: self.terminal_font_size,
@@ -1037,6 +1071,7 @@ mod tests {
     fn store(root: &Path, entries: Vec<Entry>, removed: &[(&str, u64)]) -> ProjectStore {
         ProjectStore {
             root: root.to_path_buf(),
+            root_chosen: true,
             state_file: None,
             entries,
             removed: removed.iter().map(|(name, at)| (name.to_string(), *at)).collect(),
@@ -1061,6 +1096,27 @@ mod tests {
 
     fn names(projects: &ProjectStore) -> Vec<String> {
         projects.list().iter().map(|project| project.id().to_string()).collect()
+    }
+
+    #[test]
+    fn the_main_folder_is_asked_for_on_a_first_launch() {
+        let dir = snapshots("first", &[r#"{"projects": {"MAPLE": {"session": "s-maple", "added_at": 5}}}"#]);
+        let chosen = std::env::temp_dir().join(format!("pult-first-root-{}", std::process::id()));
+        fs::create_dir_all(&chosen).unwrap();
+        let mut projects = store(Path::new("/default/Projects"), Vec::new(), &[]);
+        projects.root_chosen = false;
+        assert!(projects.needs_root());
+        assert!(!projects.adopt_shared(&dir, |_| true).changed, "nowhere to put projects from other computers yet");
+        assert!(projects.ensure_folders().is_empty());
+        assert!(projects.choose_root(chosen.join("missing")).is_err());
+        projects.choose_root(chosen.clone()).unwrap();
+        assert!(!projects.needs_root());
+        assert_eq!(projects.root(), chosen.as_path());
+        assert!(projects.adopt_shared(&dir, |_| true).changed, "once chosen, they come");
+        assert_eq!(projects.list()[0].path(), chosen.join("MAPLE"));
+        assert!(projects.choose_root(std::env::temp_dir()).is_err(), "with projects the folder is moved, not swapped");
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&chosen);
     }
 
     #[test]

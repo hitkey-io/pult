@@ -133,13 +133,6 @@ struct Entry {
     own: bool,
 }
 
-impl Config {
-    /// `Authorization` header with this computer's key.
-    pub fn bearer(&self) -> String {
-        format!("Bearer {}", self.token)
-    }
-}
-
 fn is_zero(value: &u64) -> bool {
     *value == 0
 }

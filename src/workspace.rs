@@ -2025,11 +2025,66 @@ impl Workspace {
     }
 
     fn new_project(&mut self, _: &NewProject, window: &mut Window, cx: &mut Context<Self>) {
+        if self.store.needs_root() {
+            self.pick_root(AfterRoot::NewProject, window, cx);
+            return;
+        }
         let root = display_path(self.store.root());
         dialogs::open_new_project(cx.entity().downgrade(), root, window, cx);
     }
 
+    /// First launch: ask for the main folder (any folder on the computer), then go on with what was asked for.
+    fn pick_root(&mut self, after: AfterRoot, window: &mut Window, cx: &mut Context<Self>) {
+        let paths = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some(t("common.choose").into()),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            if let Ok(Ok(Some(mut paths))) = paths.await
+                && let Some(path) = paths.pop()
+            {
+                let _ = this.update_in(cx, |this, window, cx| {
+                    if let Err(error) = this.set_root(path) {
+                        window.push_notification(error, cx);
+                        return;
+                    }
+                    cx.notify();
+                    match after {
+                        AfterRoot::NewProject => this.new_project(&NewProject, window, cx),
+                        // An empty folder has nothing to offer: the "No projects" placeholder takes over.
+                        AfterRoot::AddFolders if !this.store.candidates().is_empty() => {
+                            this.add_folders(&AddFolders, window, cx)
+                        }
+                        AfterRoot::AddFolders => {}
+                    }
+                });
+            }
+        })
+        .detach();
+    }
+
+    /// Make `path` the main folder without moving anything (only while Pult has no projects).
+    pub(crate) fn set_root(&mut self, path: PathBuf) -> Result<(), String> {
+        self.store.choose_root(path)?;
+        self.reload();
+        Ok(())
+    }
+
+    pub(crate) fn needs_root(&self) -> bool {
+        self.store.needs_root()
+    }
+
+    pub(crate) fn has_projects(&self) -> bool {
+        !self.projects.is_empty()
+    }
+
     fn add_folders(&mut self, _: &AddFolders, window: &mut Window, cx: &mut Context<Self>) {
+        if self.store.needs_root() {
+            self.pick_root(AfterRoot::AddFolders, window, cx);
+            return;
+        }
         let candidates = self
             .store
             .candidates()
@@ -3129,6 +3184,18 @@ impl Workspace {
     fn render_placeholder(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let workspace = cx.entity().downgrade();
         let Some(project) = self.current().cloned() else {
+            if self.store.needs_root() {
+                return Some(terminal::placeholder(
+                    t("workspace.where_are_your_projects"),
+                    t("workspace.choose_folder_that_holds"),
+                    vec![
+                        Button::new("empty-root")
+                            .label(t("workspace.choose_folder"))
+                            .on_click(|_, window, cx| window.dispatch_action(Box::new(AddFolders), cx)),
+                    ],
+                    cx,
+                ));
+            }
             return Some(terminal::placeholder(
                 t("workspace.no_projects"),
                 t("workspace.create_project_or_add_folder"),
@@ -4107,6 +4174,13 @@ fn sentence(text: &str) -> String {
 }
 
 /// What failed: it decides what Try again does.
+/// What to do once the main folder is chosen on a first launch.
+#[derive(Clone, Copy)]
+enum AfterRoot {
+    AddFolders,
+    NewProject,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Failure {
     /// Start the pinned session.

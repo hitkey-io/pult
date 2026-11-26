@@ -16,7 +16,7 @@ use gpui_kit::component::{
     v_flex,
 };
 use gpui_kit::{
-    AnyWindowHandle, App, AppContext as _, Bounds, Context, Entity, Focusable as _, IntoElement, ParentElement as _, Render, SharedString,
+    AnyWindowHandle, App, AppContext as _, Bounds, Context, Entity, Focusable as _, IntoElement, ParentElement as _, PathPromptOptions, Render, SharedString,
     Styled as _, Subscription, WeakEntity, Window, WindowBounds, WindowOptions, div, prelude::FluentBuilder as _, px, size,
 };
 use gpui_kit::assets::IconName as AssetIcon;
@@ -333,12 +333,14 @@ impl SettingsView {
                     let Some(entity) = workspace.upgrade() else {
                         return div().into_any_element();
                     };
-                    let (root, count) = {
+                    let (root, count, empty, unchosen) = {
                         let workspace = entity.read(cx);
-                        (workspace.root(), workspace.root_count())
+                        (workspace.root(), workspace.root_count(), !workspace.has_projects(), workspace.needs_root())
                     };
                     let workspace = workspace.clone();
+                    let chooser = workspace.clone();
                     let from = root.clone();
+                    let choose_label = if unchosen { t("workspace.choose_folder") } else { t("settings.choose_another") };
                     h_flex()
                         .w_full()
                         .gap_3()
@@ -347,22 +349,63 @@ impl SettingsView {
                             v_flex()
                                 .flex_1()
                                 .min_w_0()
-                                .child(
-                                    div()
-                                        .truncate()
-                                        .font_family(cx.theme().mono_font_family.clone())
-                                        .text_sm()
-                                        .child(display_path(&root)),
-                                )
-                                .child(
-                                    div().text_sm().text_color(cx.theme().muted_foreground).child(projects_label(count)),
-                                ),
+                                .when(unchosen, |this| {
+                                    this.child(div().text_sm().text_color(cx.theme().muted_foreground).child(t("settings.not_chosen")))
+                                })
+                                .when(!unchosen, |this| {
+                                    this.child(
+                                        div()
+                                            .truncate()
+                                            .font_family(cx.theme().mono_font_family.clone())
+                                            .text_sm()
+                                            .child(display_path(&root)),
+                                    )
+                                    .child(
+                                        div().text_sm().text_color(cx.theme().muted_foreground).child(projects_label(count)),
+                                    )
+                                }),
                         )
-                        .child(Button::new("root-change").outline().label(t("settings.change")).on_click(
-                            move |_, window, cx| {
-                                rename::open(workspace.clone(), Target::Root, from.clone(), window, cx);
-                            },
-                        ))
+                        // With no projects yet the main folder can simply be another one; with projects it is
+                        // moved instead, so they stay inside it.
+                        .when(empty, |this| {
+                            this.child(Button::new("root-choose").outline().label(choose_label).on_click(
+                                move |_, window, cx| {
+                                    let paths = cx.prompt_for_paths(PathPromptOptions {
+                                        files: false,
+                                        directories: true,
+                                        multiple: false,
+                                        prompt: Some(t("common.choose").into()),
+                                    });
+                                    let workspace = chooser.clone();
+                                    window
+                                        .spawn(cx, async move |cx| {
+                                            if let Ok(Ok(Some(mut paths))) = paths.await
+                                                && let Some(path) = paths.pop()
+                                            {
+                                                let _ = cx.update(|window, cx| {
+                                                    match workspace.update(cx, |workspace, cx| {
+                                                        let result = workspace.set_root(path);
+                                                        cx.notify();
+                                                        result
+                                                    }) {
+                                                        Ok(Err(error)) => window.push_notification(error, cx),
+                                                        _ => window.refresh(),
+                                                    }
+                                                });
+                                            }
+                                        })
+                                        .detach();
+                                },
+                            ))
+                        })
+                        // Nothing to move until a folder is chosen.
+                        .when(!unchosen, |this| {
+                            this.child(Button::new("root-change").outline().label(t("settings.change")).on_click(
+                                move |_, window, cx| {
+                                    rename::open(workspace.clone(), Target::Root, from.clone(), window, cx);
+                                },
+                            ))
+                        })
                         .into_any_element()
                 })),
         )

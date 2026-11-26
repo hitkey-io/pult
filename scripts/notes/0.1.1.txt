@@ -1,0 +1,2 @@
+On first launch Pult asks which folder holds your projects; any folder on the computer will do.
+While Pult has no projects, Settings → Folders can switch the main folder without moving it.

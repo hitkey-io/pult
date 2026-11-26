@@ -379,6 +379,12 @@ migrate:
     ru: "Не поднялись сессии: %{join}. Нажмите «Продолжить» в проекте."
 
 projects:
+  main_folder_has_projects:
+    en: "Pult already has projects in the main folder. To use another folder, move it with “Change…”."
+    ru: "В главной папке уже есть проекты пульта. Чтобы взять другую папку, перенесите эту кнопкой «Изменить…»."
+  folder_not_found_path:
+    en: "Folder not found: %{path}"
+    ru: "Папка не найдена: %{path}"
   subproject_already_exists:
     en: "“%{folder}” already has a subproject “%{name}”."
     ru: "В «%{folder}» уже есть подпроект «%{name}»"
@@ -511,6 +517,12 @@ sessions:
     ru: "Claude Code ответил, что сессия запущена, но не показывает её среди своих сессий. Повторите; если повторится — выполните в терминале «claude agents --all», чтобы увидеть, что Claude Code о ней знает."
 
 settings:
+  not_chosen:
+    en: "Not chosen"
+    ru: "Не выбрана"
+  choose_another:
+    en: "Choose Another…"
+    ru: "Выбрать другую…"
   count_project:
     one:
       en: "%{count} project"
@@ -950,6 +962,15 @@ update:
     ru: "Пульт %{version} встанет на место %{bundle} и откроется"
 
 workspace:
+  where_are_your_projects:
+    en: "Where are your projects?"
+    ru: "Где лежат ваши проекты?"
+  choose_folder_that_holds:
+    en: "Choose the folder that holds your project folders. New projects are created there too. You can change it in Settings."
+    ru: "Выберите папку, в которой лежат папки ваших проектов. Новые проекты пульт создаёт в ней же. Поменять её можно в настройках."
+  choose_folder:
+    en: "Choose Folder…"
+    ru: "Выбрать папку…"
   session_stopped_with_error:
     en: "The session stopped with an error"
     ru: "Сессия остановилась с ошибкой"
