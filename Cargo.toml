@@ -1,0 +1,24 @@
+[package]
+name = "pult"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libc = "0.2"
+gpui-kit = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+dirs = "5"
+memchr = "2"
+alacritty_terminal = "0.26"
+futures = "0.3.34"
+ureq = "3"
+zstd = "0.14.4"
+sha2 = "0.11.1"
+sys-locale = "0.3"
+rust-i18n = "4.2"
+
+# Copies of two GPUI crates with a frame-source fix (vendor/README.md).
+[patch.crates-io]
+gpui-pre-macos = { path = "vendor/gpui-pre-macos" }
+gpui-pre-apple = { path = "vendor/gpui-pre-apple" }

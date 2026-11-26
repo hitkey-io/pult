@@ -1,0 +1,1725 @@
+_version: 2
+
+common:
+  split_into_subprojects:
+    en: "Split into subprojects…"
+    ru: "Разделить на подпроекты…"
+  new_subproject:
+    en: "New subproject…"
+    ru: "Новый подпроект…"
+  remove_subproject:
+    en: "Remove subproject…"
+    ru: "Убрать подпроект…"
+  new_project:
+    en: "New project…"
+    ru: "Новый проект…"
+  settings:
+    en: "Settings…"
+    ru: "Настройки…"
+  add_folders:
+    en: "Add folders…"
+    ru: "Добавить папки…"
+  pause_all_except_current:
+    en: "Pause all except current"
+    ru: "Пауза для всех, кроме текущего"
+  hide_sidebar:
+    en: "Hide sidebar"
+    ru: "Скрыть боковую панель"
+  show_sidebar:
+    en: "Show sidebar"
+    ru: "Показать боковую панель"
+  light_theme:
+    en: "Light theme"
+    ru: "Светлая тема"
+  dark_theme:
+    en: "Dark theme"
+    ru: "Тёмная тема"
+  projects:
+    en: "Projects"
+    ru: "Проекты"
+  name_can_t_start_with:
+    en: "The name can’t start with a dot or contain “/” or “:”."
+    ru: "Название не должно начинаться с точки и содержать «/» или «:»"
+  cancel:
+    en: "Cancel"
+    ru: "Отмена"
+  pult:
+    en: "Pult"
+    ru: "Пульт"
+  change_session:
+    en: "Change session…"
+    ru: "Сменить сессию…"
+  copy_path:
+    en: "Copy path"
+    ru: "Скопировать путь"
+  show_in_finder:
+    en: "Show in Finder"
+    ru: "Показать в Finder"
+  rename_project:
+    en: "Rename project…"
+    ru: "Переименовать проект…"
+  remove_from_pult:
+    en: "Remove from Pult…"
+    ru: "Убрать из пульта…"
+  connected_to_claude:
+    en: "Connected to Claude"
+    ru: "Подключено к Claude"
+  back:
+    en: "Back"
+    ru: "Назад"
+  forward:
+    en: "Forward"
+    ru: "Вперёд"
+  clear_terminal_screen:
+    en: "Clear terminal screen"
+    ru: "Очистить экран терминала"
+  search:
+    en: "Search…"
+    ru: "Поиск…"
+  folder_to_already_exists:
+    en: "Folder %{to} already exists."
+    ru: "Папка %{to} уже есть"
+  choose:
+    en: "Choose"
+    ru: "Выбрать"
+  main_folder:
+    en: "Main folder"
+    ru: "Главная папка"
+  check_again:
+    en: "Check again"
+    ru: "Проверить снова"
+  update:
+    en: "Update…"
+    ru: "Обновить…"
+  settings_2:
+    en: "Settings"
+    ru: "Настройки"
+  try_again:
+    en: "Try again"
+    ru: "Повторить"
+
+dialogs:
+  about_example_first:
+    en: "What it does: orders and stock in reports"
+    ru: "Чем занимается: заявки товара и остатки в отчётах"
+  about_example_second:
+    en: "What it does: cash flow and supplier payments"
+    ru: "Чем занимается: ДДС и платежи поставщикам"
+  about_example_new:
+    en: "What it does: stock export to the accounting system"
+    ru: "Чем занимается: выгрузка остатков в 1С"
+  about_description:
+    en: "One line. The parallel sessions of the project read it: it tells them what you are working on here, so they can warn you about overlaps."
+    ru: "Одна строка. Её видят параллельные сессии проекта: по ней они понимают, над чем вы работаете здесь, и предупреждают вас о пересечениях."
+  what_it_does:
+    en: "What it does"
+    ru: "Чем занимается"
+  save:
+    en: "Save"
+    ru: "Сохранить"
+  split_name_into_subprojects:
+    en: "Split “%{name}” into subprojects"
+    ru: "Разделить «%{name}» на подпроекты"
+  each_subproject_has_its_own:
+    en: "Each subproject has its own Claude conversation; the folder stays shared. The current conversation is kept — it becomes the first subproject. The parallel sessions read the “What it does” line to understand what the others work on; you can skip it."
+    ru: "У каждого подпроекта своя переписка Claude, папка остаётся общей. Текущая переписка не пропадёт — она станет первым подпроектом. Строку «Чем занимается» видят параллельные сессии — по ней они понимают, над чем работают соседи; можно пропустить."
+  current_conversation:
+    en: "Current conversation"
+    ru: "Текущая переписка"
+  new_subproject_field:
+    en: "New subproject"
+    ru: "Новый подпроект"
+  example_first:
+    en: "For example, Backend"
+    ru: "Например, Склад"
+  example_second:
+    en: "For example, Billing"
+    ru: "Например, Финансы"
+  sessions_first_second:
+    en: "Sessions: %{first} · %{second}"
+    ru: "Сессии: %{first} · %{second}"
+  session_name_hint:
+    en: "Session: %{name}"
+    ru: "Сессия: %{name}"
+  subproject_names_must_differ:
+    en: "Subproject names must differ."
+    ru: "Названия подпроектов должны различаться"
+  split:
+    en: "Split"
+    ru: "Разделить"
+  new_subproject_in_name:
+    en: "New subproject in “%{name}”"
+    ru: "Новый подпроект в «%{name}»"
+  own_conversation_in_same_folder:
+    en: "Its own Claude conversation in the same folder, %{path}. Rules, plugins and skills are shared with the project."
+    ru: "Своя переписка Claude в той же папке %{path}. Правила, плагины и скиллы — общие с проектом."
+  hide_connected_panel:
+    en: "Hide connected panel"
+    ru: "Скрыть подключённое"
+  show_connected_panel:
+    en: "Show connected panel"
+    ru: "Показать подключённое"
+  system_theme:
+    en: "System theme"
+    ru: "Тема как в системе"
+  project_or_command:
+    en: "Project or command"
+    ru: "Проект или команда"
+  nothing_found:
+    en: "Nothing found"
+    ru: "Ничего не найдено"
+  commands:
+    en: "Commands"
+    ru: "Команды"
+  folder_root_name_already_exists:
+    en: "Folder %{root}/%{name} already exists."
+    ru: "Папка %{root}/%{name} уже есть"
+  create:
+    en: "Create"
+    ru: "Создать"
+  new_project:
+    en: "New project"
+    ru: "Новый проект"
+  folder_is_created_in_root:
+    en: "The folder is created in %{root}, and a new Claude session is pinned to the project right away."
+    ru: "Папка создаётся в %{root}, за проектом сразу закрепляется новая сессия Claude."
+  name:
+    en: "Name"
+    ru: "Название"
+  no_sessions:
+    en: "no sessions"
+    ru: "нет сессий"
+  count_session:
+    one:
+      en: "%{count} session"
+      ru: "%{count} сессия"
+    few:
+      en: "%{count} sessions"
+      ru: "%{count} сессии"
+    many:
+      en: "%{count} sessions"
+      ru: "%{count} сессий"
+  all_folders_are_already_in:
+    en: "All folders are already in Pult"
+    ru: "Все папки уже в пульте"
+  add_count:
+    en: "Add %{count}"
+    ru: "Добавить %{count}"
+  add:
+    en: "Add"
+    ru: "Добавить"
+  add_folders:
+    en: "Add folders"
+    ru: "Добавить папки"
+  folders_in_root_that_aren:
+    en: "Folders in %{root} that aren’t in Pult yet. Pult’s projects live only in the main folder."
+    ru: "Папки из %{root}, которых ещё нет в пульте. Проекты пульта лежат только в главной папке."
+
+app:
+  pult_env:
+    en: "Pult %{env}"
+    ru: "Пульт %{env}"
+  pult_one_claude_code_session:
+    en: "Pult: one Claude Code session for each project."
+    ru: "Пульт проектов: за каждым проектом — одна сессия Claude Code."
+  done:
+    en: "Done"
+    ru: "Готово"
+  about_pult:
+    en: "About Pult"
+    ru: "О программе «Пульт»"
+  check_for_updates:
+    en: "Check for updates…"
+    ru: "Проверить обновления…"
+  services:
+    en: "Services"
+    ru: "Службы"
+  hide_pult:
+    en: "Hide Pult"
+    ru: "Скрыть Пульт"
+  hide_others:
+    en: "Hide others"
+    ru: "Скрыть остальные"
+  show_all:
+    en: "Show all"
+    ru: "Показать все"
+  quit_pult:
+    en: "Quit Pult"
+    ru: "Завершить Пульт"
+  file:
+    en: "File"
+    ru: "Файл"
+  pause_continue:
+    en: "Pause / continue"
+    ru: "Пауза / продолжить"
+  close_window:
+    en: "Close window"
+    ru: "Закрыть окно"
+  edit:
+    en: "Edit"
+    ru: "Правка"
+  undo:
+    en: "Undo"
+    ru: "Отменить"
+  redo:
+    en: "Redo"
+    ru: "Повторить"
+  cut:
+    en: "Cut"
+    ru: "Вырезать"
+  copy:
+    en: "Copy"
+    ru: "Скопировать"
+  paste:
+    en: "Paste"
+    ru: "Вставить"
+  select_all:
+    en: "Select all"
+    ru: "Выбрать все"
+  view:
+    en: "View"
+    ru: "Вид"
+  sidebar:
+    en: "Sidebar"
+    ru: "Боковая панель"
+  switch_theme:
+    en: "Switch theme"
+    ru: "Сменить тему"
+  zoom_in:
+    en: "Zoom in"
+    ru: "Увеличить"
+  zoom_out:
+    en: "Zoom out"
+    ru: "Уменьшить"
+  actual_size:
+    en: "Actual size"
+    ru: "Реальный размер"
+  enter_full_screen:
+    en: "Enter full screen"
+    ru: "Перейти в полноэкранный режим"
+  window:
+    en: "Window"
+    ru: "Окно"
+  minimize:
+    en: "Minimize"
+    ru: "Свернуть"
+  zoom:
+    en: "Zoom"
+    ru: "Изменить масштаб"
+
+migrate:
+  pausing_sessions:
+    en: "Pausing sessions"
+    ru: "Ставим сессии на паузу"
+  pausing_session:
+    en: "Pausing the session"
+    ru: "Ставим сессию на паузу"
+  saving_backup:
+    en: "Saving a backup"
+    ru: "Сохраняем резервную копию"
+  moving_folder_on_disk:
+    en: "Moving the folder on disk"
+    ru: "Переносим папку на диске"
+  moving_claude_code_transcripts_memory:
+    en: "Moving Claude Code transcripts, memory and trust"
+    ru: "Переносим переписку, память и доверие Claude Code"
+  continuing_sessions:
+    en: "Continuing sessions"
+    ru: "Продолжаем сессии"
+  continuing_session:
+    en: "Continuing the session"
+    ru: "Продолжаем сессию"
+  couldn_t_move_claude_code:
+    en: "Couldn’t move Claude Code data: %{error}"
+    ru: "Не удалось перенести данные Claude Code: %{error}"
+  couldn_t_read_claude_code:
+    en: "Couldn’t read Claude Code data: %{error}"
+    ru: "Не удалось прочитать данные Claude Code: %{error}"
+  claude_code_is_open_in:
+    en: "Claude Code is open in another window (%{cwd}). Close it and try again."
+    ru: "Claude Code открыт в другом окне (%{cwd}). Закройте его и повторите."
+  claude_didn_t_stop_within:
+    en: "Claude didn’t stop within 15 seconds. Wait for the turn to finish and try again."
+    ru: "Claude не остановился за 15 секунд. Дождитесь конца хода и повторите."
+  pult_s_data_folder_wasn:
+    en: "Pult’s data folder wasn’t found."
+    ru: "Не найдена папка данных пульта"
+  couldn_t_create_backup_folder:
+    en: "Couldn’t create the backup folder: %{error}"
+    ru: "Не удалось создать папку резервных копий: %{error}"
+  couldn_t_save_claude_json:
+    en: "Couldn’t save ~/.claude.json: %{error}"
+    ru: "Не удалось сохранить ~/.claude.json: %{error}"
+  folder_parent_doesn_t_exist:
+    en: "Folder %{parent} doesn’t exist."
+    ru: "Папки %{parent} нет"
+  folder_can_t_be_moved:
+    en: "The folder can’t be moved to another disk."
+    ru: "Папку нельзя перенести на другой диск."
+  couldn_t_rename_folder_error:
+    en: "Couldn’t rename the folder: %{error}"
+    ru: "Не удалось переименовать папку: %{error}"
+  claude_code_already_has_target:
+    en: "Claude Code already has %{target} at the new place — the move was stopped."
+    ru: "На новом месте у Claude Code уже есть %{target} — перенос остановлен"
+  couldn_t_read_path_error:
+    en: "Couldn’t read %{path}: %{error}"
+    ru: "Не удалось прочитать %{path}: %{error}"
+  couldn_t_write_path_error:
+    en: "Couldn’t write %{path}: %{error}"
+    ru: "Не удалось записать %{path}: %{error}"
+  couldn_t_read_claude_json:
+    en: "Couldn’t read ~/.claude.json: %{error}"
+    ru: "~/.claude.json не читается: %{error}"
+  couldn_t_update_transcript_path:
+    en: "Couldn’t update the transcript %{path}: %{error}"
+    ru: "Не удалось поправить переписку %{path}: %{error}"
+  these_sessions_didn_t_start:
+    en: "These sessions didn’t start: %{join}. Click Continue in the project."
+    ru: "Не поднялись сессии: %{join}. Нажмите «Продолжить» в проекте."
+
+projects:
+  subproject_already_exists:
+    en: "“%{folder}” already has a subproject “%{name}”."
+    ru: "В «%{folder}» уже есть подпроект «%{name}»"
+  enter_name:
+    en: "Enter a name."
+    ru: "Введите название"
+  project_name_is_already_in:
+    en: "Project “%{name}” is already in Pult."
+    ru: "Проект «%{name}» уже есть в пульте"
+  couldn_t_create_folder_error:
+    en: "Couldn’t create the folder: %{error}"
+    ru: "Не удалось создать папку: %{error}"
+  couldn_t_add_project:
+    en: "Couldn’t add the project."
+    ru: "Не удалось добавить проект"
+  project_not_found:
+    en: "Project not found."
+    ru: "Проект не найден"
+
+rename:
+  enter_name:
+    en: "Enter a name."
+    ru: "Введите имя"
+  name_can_t_start_with:
+    en: "The name can’t start with a dot or contain “/” or “:”."
+    ru: "Имя не должно начинаться с точки и содержать «/» или «:»"
+  this_is_current_name:
+    en: "This is the current name."
+    ru: "Это текущее имя"
+  folder_can_t_be_moved:
+    en: "A folder can’t be moved into itself."
+    ru: "Нельзя перенести папку внутрь неё самой"
+  moving_main_folder:
+    en: "Moving the main folder…"
+    ru: "Переносим главную папку…"
+  moving_project:
+    en: "Moving the project…"
+    ru: "Переносим проект…"
+  rename_current_name:
+    en: "Rename “%{current_name}”"
+    ru: "Переименовать «%{current_name}»"
+  project_folder_will_be_renamed:
+    en: "The project folder will be renamed on disk. The Claude session, its memory and folder trust move to the new path."
+    ru: "Папка проекта переименуется на диске. Сессия Claude, её память и доверие к папке перейдут на новый путь."
+  rename_or_move_folder_with:
+    en: "Rename or move the folder with all its projects. Claude sessions, their memory and folder trust move to the new paths."
+    ru: "Переименуйте или перенесите папку вместе со всеми проектами. Сессии Claude, их память и доверие к папкам перейдут на новые пути."
+  if_something_goes_wrong_everything:
+    en: "If something goes wrong, everything goes back to how it was."
+    ru: "Если что-то пойдёт не так, всё вернётся как было."
+  project_session:
+    en: "Project session"
+    ru: "Сессия проекта"
+  affects_affected:
+    en: "Affects %{affected}"
+    ru: "Затронет %{affected}"
+  claude_code_is_open_in:
+    en: "Claude Code is open in another window"
+    ru: "Claude Code открыт в другом окне"
+  move:
+    en: "Move"
+    ru: "Перенести"
+  rename:
+    en: "Rename"
+    ru: "Переименовать"
+  location:
+    en: "Location"
+    ru: "Расположение"
+  choose:
+    en: "Choose…"
+    ru: "Выбрать…"
+  new_name:
+    en: "New name"
+    ru: "Новое имя"
+  name:
+    en: "Name"
+    ru: "Имя"
+  no_projects_inside:
+    en: "No projects inside"
+    ru: "Проектов внутри нет"
+  close_these_sessions_there_session:
+    en: "Close these sessions there — a session can’t be moved while it’s open."
+    ru: "Закройте эти сессии там — одну сессию нельзя переносить, пока она открыта."
+
+sessions:
+  claude_code_not_found_install:
+    en: "Claude Code not found. Install it and sign in, then try again."
+    ru: "Claude Code не найден. Установите его и войдите в аккаунт, потом повторите."
+  claude_code_didn_t_respond:
+    en: "Claude Code didn’t respond within a minute. Check that Claude Code is installed and you’re signed in, then try again."
+    ru: "Claude Code не ответил за минуту. Проверьте, что Claude Code установлен и вы вошли в аккаунт, и повторите."
+  couldn_t_start_claude_code:
+    en: "Couldn’t start Claude Code: %{error}."
+    ru: "Не удалось запустить Claude Code: %{error}."
+  claude_code_didn_t_return:
+    en: "Claude Code didn’t return the new session’s id."
+    ru: "Claude Code не вернул id новой сессии"
+  claude_code_didn_t_restart:
+    en: "Claude Code didn’t restart the session: %{first}"
+    ru: "Claude Code не поднял сессию: %{first}"
+  couldn_t_update_session_s:
+    en: "Couldn’t update the session’s flags: %{error}"
+    ru: "Не удалось поправить флаги сессии: %{error}"
+  no_respawnflags:
+    en: "no respawnFlags"
+    ru: "нет respawnFlags"
+  claude_code_didn_t_start:
+    en: "Claude Code didn’t start the session: %{first}"
+    ru: "Claude Code не запустил сессию: %{first}"
+  just_now:
+    en: "just now"
+    ru: "сейчас"
+  seconds_min_ago:
+    en: "%{seconds} min ago"
+    ru: "%{seconds} мин назад"
+  seconds_h_ago:
+    en: "%{seconds} h ago"
+    ru: "%{seconds} ч назад"
+  yesterday:
+    en: "yesterday"
+    ru: "вчера"
+  max_kb:
+    en: "%{max} KB"
+    ru: "%{max} КБ"
+  number_mb:
+    en: "%{number} MB"
+    ru: "%{number} МБ"
+  started_but_not_listed:
+    en: "Claude Code reported the session as started but doesn’t show it among its sessions. Try again; if it repeats, run “claude agents --all” in a terminal to see what Claude Code knows about it."
+    ru: "Claude Code ответил, что сессия запущена, но не показывает её среди своих сессий. Повторите; если повторится — выполните в терминале «claude agents --all», чтобы увидеть, что Claude Code о ней знает."
+
+settings:
+  count_project:
+    one:
+      en: "%{count} project"
+      ru: "%{count} проект"
+    few:
+      en: "%{count} projects"
+      ru: "%{count} проекта"
+    many:
+      en: "%{count} projects"
+      ru: "%{count} проектов"
+  count_file:
+    one:
+      en: "%{count} file"
+      ru: "%{count} файл"
+    few:
+      en: "%{count} files"
+      ru: "%{count} файла"
+    many:
+      en: "%{count} files"
+      ru: "%{count} файлов"
+  pending_left_to_send:
+    en: "%{pending} left to send"
+    ru: "Осталось отправить: %{pending}"
+  sending:
+    en: "Sending"
+    ru: "Отправляется"
+  nothing_sent_yet:
+    en: "Nothing sent yet"
+    ru: "Ещё ничего не отправлено"
+  just_now:
+    en: "just now"
+    ru: "только что"
+  all_sent_when:
+    en: "All sent · %{when}"
+    ru: "Всё отправлено · %{when}"
+  too_large_to_send_skipped:
+    en: ". Too large to send: %{skipped}"
+    ru: ". Слишком большие и не отправляются: %{skipped}"
+  general:
+    en: "General"
+    ru: "Основные"
+  theme:
+    en: "Theme"
+    ru: "Тема"
+  system:
+    en: "System"
+    ru: "Как в системе"
+  light:
+    en: "Light"
+    ru: "Светлая"
+  dark:
+    en: "Dark"
+    ru: "Тёмная"
+  terminal_always_uses_iterm2_colors:
+    en: "The terminal always uses iTerm2 colors"
+    ru: "Терминал всегда в цветах iTerm2"
+  language:
+    en: "Language"
+    ru: "Язык"
+  system_russian_if_macos_is:
+    en: "System: Russian if macOS is in Russian, English otherwise"
+    ru: "Как в системе: русский, если macOS на русском, иначе английский"
+  terminal_font_size:
+    en: "Terminal font size"
+    ru: "Размер шрифта терминала"
+  same_as_0_in_terminal:
+    en: "Same as ⌘+ / ⌘− / ⌘0 in the terminal"
+    ru: "То же, что ⌘+ / ⌘− / ⌘0 в терминале"
+  not_checked_yet:
+    en: "not checked yet"
+    ru: "ещё не проверялось"
+  checked_just_now:
+    en: "checked just now"
+    ru: "проверено только что"
+  checked_when:
+    en: "checked %{when}"
+    ru: "проверено %{when}"
+  checking:
+    en: "Checking…"
+    ru: "Проверка…"
+  version_new_is_available:
+    en: "Version %{new} is available"
+    ru: "Доступна версия %{new}"
+  updating_to_new:
+    en: "Updating to %{new}"
+    ru: "Идёт обновление до %{new}"
+  version_new_is_available_last:
+    en: "Version %{new} is available. The last attempt failed."
+    ru: "Доступна версия %{new}. Прошлая попытка не удалась."
+  updates_haven_t_been_checked:
+    en: "Updates haven’t been checked yet"
+    ru: "Обновления ещё не проверялись"
+  latest_version_checked:
+    en: "Latest version · %{checked}"
+    ru: "Последняя версия · %{checked}"
+  version_env:
+    en: "Version %{env}"
+    ru: "Версия %{env}"
+  check:
+    en: "Check"
+    ru: "Проверить"
+  check_automatically:
+    en: "Check automatically"
+    ru: "Проверять автоматически"
+  when_pult_starts_and_once:
+    en: "When Pult starts and once a day, from your sync server"
+    ru: "При запуске пульта и раз в день, с вашего сервера синхронизации"
+  folders:
+    en: "Folders"
+    ru: "Папки"
+  one_for_all_of_pult:
+    en: "One for all of Pult: every project lives in it. New projects are created here, and “Add folders” suggests folders from here."
+    ru: "Одна на весь пульт: все проекты живут в ней. Здесь создаются новые проекты, отсюда предлагаются папки в «Добавить папки»."
+  change:
+    en: "Change…"
+    ru: "Изменить…"
+  server:
+    en: "Server"
+    ru: "Сервер"
+  pult_copies_claude_code_transcripts:
+    en: "Pult copies Claude Code transcripts to your server. Project folders can be in different places on different computers."
+    ru: "Пульт копирует переписки Claude Code на ваш сервер. Папки проектов на разных компьютерах могут лежать в разных местах."
+  server_address:
+    en: "Server address"
+    ru: "Адрес сервера"
+  get_code:
+    en: "Get code"
+    ru: "Получить код"
+  server_sent_you_code_in:
+    en: "The server sent you the code in Telegram. It’s valid for 10 minutes."
+    ru: "Сервер отправил код вам в Telegram. Код действует 10 минут."
+  code_is_in_server_log:
+    en: "The code is in the server log. It’s valid for 10 minutes."
+    ru: "Код записан в журнале сервера. Код действует 10 минут."
+  connection_code:
+    en: "Connection code"
+    ru: "Код подключения"
+  connect:
+    en: "Connect"
+    ru: "Подключить"
+  raw_free_free:
+    en: "%{raw} · %{free} free"
+    ru: "%{raw} · свободно %{free}"
+  disconnect_server:
+    en: "Disconnect “%{server}”?"
+    ru: "Отключить «%{server}»?"
+  this_computer_will_stop_sending:
+    en: "This computer will stop sending transcripts. What’s already on the server stays."
+    ru: "Этот компьютер перестанет отправлять переписки. То, что уже на сервере, останется."
+  disconnect:
+    en: "Disconnect"
+    ru: "Отключить"
+  disconnect_2:
+    en: "Disconnect…"
+    ru: "Отключить…"
+  status:
+    en: "Status"
+    ru: "Состояние"
+  send_now:
+    en: "Send now"
+    ru: "Отправить сейчас"
+  this_computer:
+    en: "This computer"
+    ru: "Этот компьютер"
+  on_server:
+    en: "On the server"
+    ru: "На сервере"
+  new_data_goes_to_server:
+    en: "New data goes to the server after every Claude reply, even when Pult is closed."
+    ru: "Новое уходит на сервер после каждого ответа Claude, даже когда пульт закрыт."
+  sync:
+    en: "Sync"
+    ru: "Синхронизация"
+
+sync:
+  couldn_t_write_path_error:
+    en: "Couldn’t write %{path}: %{error}"
+    ru: "Не удалось записать %{path}: %{error}"
+  can_t_reach_server_pult:
+    en: "Can’t reach the server. Pult will retry sending on its own."
+    ru: "Нет связи с сервером. Пульт повторит отправку сам."
+  server_doesn_t_recognize_this:
+    en: "The server doesn’t recognize this computer. Disconnect it and connect again."
+    ru: "Сервер не узнаёт этот компьютер. Отключите его и подключите заново."
+  server_is_out_of_space:
+    en: "The server is out of space."
+    ru: "На сервере кончилось место."
+  that_code_didn_t_work:
+    en: "That code didn’t work. Enter it again."
+    ru: "Код не подошёл. Введите его ещё раз."
+  code_has_expired_click_cancel:
+    en: "The code has expired. Click Cancel and get a new one."
+    ru: "Код устарел. Нажмите «Отмена» и получите новый."
+  too_many_attempts_wait_ten:
+    en: "Too many attempts. Wait ten minutes."
+    ru: "Слишком много попыток. Подождите десять минут."
+  too_many_wrong_codes_new:
+    en: "Too many wrong codes. New computers can be connected again in 24 hours."
+    ru: "Слишком много неверных кодов. Новые компьютеры можно будет подключить через сутки."
+  server_replied_status_name:
+    en: "The server replied %{status} %{name}."
+    ru: "Сервер ответил %{status} %{name}."
+  couldn_t_read_server_s:
+    en: "Couldn’t read the server’s response: %{error}"
+    ru: "Ответ сервера не разобран: %{error}"
+  couldn_t_read_path_error:
+    en: "Couldn’t read %{path}: %{error}"
+    ru: "Не удалось прочитать %{path}: %{error}"
+  server_accepted_different_amount_than:
+    en: "The server accepted a different amount than was sent."
+    ru: "Сервер принял не столько, сколько отправлено."
+  sync_isn_t_connected:
+    en: "Sync isn’t connected."
+    ru: "Синхронизация не подключена."
+  couldn_t_reach_server_check:
+    en: "Couldn’t reach the server. Check the address and your network connection."
+    ru: "Не удалось связаться с сервером. Проверьте адрес и подключение к сети."
+  there_s_no_sync_server:
+    en: "There’s no sync server at this address. Check the address."
+    ru: "По этому адресу нет сервера синхронизации. Проверьте адрес."
+  server_is_newer_than_this:
+    en: "The server is newer than this Pult. Update Pult."
+    ru: "Сервер новее этого пульта. Обновите пульт."
+  server_didn_t_issue_device:
+    en: "The server didn’t issue a device key."
+    ru: "Сервер не выдал ключ устройства."
+  can_t_read_claude_settings:
+    en: "Can’t read ~/.claude/settings.json: %{error}"
+    ru: "~/.claude/settings.json не читается: %{error}"
+  couldn_t_create_parent_error:
+    en: "Couldn’t create %{parent}: %{error}"
+    ru: "Не удалось создать %{parent}: %{error}"
+  file_what_arrived_doesn_t:
+    en: "%{file}: what arrived doesn’t match the server."
+    ru: "%{file}: пришло не то, что на сервере."
+  couldn_t_append_to_path:
+    en: "Couldn’t append to %{path}: %{error}"
+    ru: "Не удалось дописать %{path}: %{error}"
+  file_received_len_of_server:
+    en: "%{file}: received %{len} of %{server_len} bytes."
+    ru: "%{file}: пришло %{len} байт из %{server_len}."
+  b:
+    en: "B"
+    ru: "Б"
+  kb:
+    en: "KB"
+    ru: "КБ"
+  mb:
+    en: "MB"
+    ru: "МБ"
+  gb:
+    en: "GB"
+    ru: "ГБ"
+  specify_server_address_pult_sync:
+    en: "Specify the server address: pult sync connect <address>"
+    ru: "Укажите адрес сервера: pult sync connect <адрес>"
+  code_was_sent_to_you:
+    en: "The code was sent to you in Telegram."
+    ru: "Код отправлен вам в Telegram."
+  code_is_in_server_log:
+    en: "The code is in the server log."
+    ru: "Код записан в журнале сервера."
+  server_name_hint_code:
+    en: "Server “%{name}”. %{hint}\nCode: "
+    ru: "Сервер «%{name}». %{hint}\nКод: "
+  connected_to_server_name_as:
+    en: "Connected to “%{server_name}” as “%{device_name}”. Claude Code hooks call %{exe}."
+    ru: "Подключено к «%{server_name}» как «%{device_name}». Хуки Claude Code вызывают %{exe}."
+  server_server_name_address_this:
+    en: "Server: “%{server_name}” (%{address}), this computer: “%{device_name}”"
+    ru: "Сервер: «%{server_name}» (%{address}), этот компьютер — «%{device_name}»"
+  nothing_sent_yet:
+    en: "Nothing sent yet."
+    ru: "Ещё ничего не отправлено."
+  last_sent_at_s_ago:
+    en: "Last sent: %{at} s ago; %{sent_bytes} sent in total"
+    ru: "Последняя отправка: %{at} с назад; всего отправлено %{sent_bytes}"
+  sending_pending_files_left:
+    en: "Sending: %{pending} files left"
+    ru: "Идёт отправка: осталось файлов — %{pending}"
+  not_sent_larger_than_size:
+    en: "Not sent (larger than %{size_label}): %{skipped}"
+    ru: "Не отправляются (больше %{size_label}): %{skipped}"
+  error_error:
+    en: "Error: %{error}"
+    ru: "Ошибка: %{error}"
+  on_server_streams_files_raw:
+    en: "On the server: %{streams} files, %{raw_bytes} (using %{stored_bytes}), %{free_bytes} free"
+    ru: "На сервере: файлов %{streams}, %{raw_bytes} (занимают %{stored_bytes}), свободно %{free_bytes}"
+  sent_sent:
+    en: "Sent %{sent}"
+    ru: "Отправлено %{sent}"
+  files_received_files_bytes:
+    en: "Files received: %{files}, %{bytes}"
+    ru: "Получено файлов: %{files}, %{bytes}"
+  diverged_and_left_alone_conflicts:
+    en: "; diverged and left alone: %{conflicts}"
+    ru: "; разошлось и не тронуто: %{conflicts}"
+  disconnected_data_on_server_is:
+    en: "Disconnected. Data on the server is kept."
+    ru: "Отключено. Данные на сервере остались."
+  hooks_installed:
+    en: "Hooks installed."
+    ru: "Хуки поставлены."
+  hooks_are_already_installed:
+    en: "Hooks are already installed."
+    ru: "Хуки уже стоят."
+  hooks_removed:
+    en: "Hooks removed."
+    ru: "Хуки сняты."
+  there_were_no_hooks:
+    en: "There were no hooks."
+    ru: "Хуков не было."
+  pult_sync_connect_address_name:
+    en: "pult sync connect <address> [--name NAME] [--token KEY] | status | push [--transcript FILE] | pull | disconnect | install-hooks | uninstall-hooks"
+    ru: "pult sync connect <адрес> [--name ИМЯ] [--token КЛЮЧ] | status | push [--transcript ФАЙЛ] | pull | disconnect | install-hooks | uninstall-hooks"
+
+terminal:
+  couldn_t_start_terminal_error:
+    en: "Couldn’t start the terminal: %{error}"
+    ru: "Не удалось запустить терминал: %{error}"
+  disconnected_from_claude_session_press:
+    en: "[Disconnected from the Claude session — press Enter to reconnect]"
+    ru: "[Отключено от сессии Claude — Enter подключит снова]"
+  claude_code_not_found:
+    en: "Claude Code not found"
+    ru: "Claude Code не найден"
+  pult_runs_sessions_through_claude:
+    en: "Pult runs sessions through Claude Code. Install it and sign in, then check again."
+    ru: "Пульт запускает сессии через Claude Code. Установите его и войдите в аккаунт, потом проверьте снова."
+  how_to_install:
+    en: "How to install"
+    ru: "Как установить"
+
+update:
+  megabytes:
+    en: "%{value} MB"
+    ru: "%{value} МБ"
+  can_t_reach_server_check:
+    en: "Can’t reach the server. Check your network connection."
+    ru: "Нет связи с сервером. Проверьте подключение к сети."
+  couldn_t_check_for_new:
+    en: "Couldn’t check for a new version. Try again later."
+    ru: "Сервер не ответил о новой версии. Попробуйте позже."
+  server_sent_version_description_pult:
+    en: "The server sent a version description Pult can’t read."
+    ru: "Сервер прислал непонятное описание версии."
+  couldn_t_download_update_check:
+    en: "Couldn’t download the update. Check your network connection."
+    ru: "Не удалось скачать обновление. Проверьте подключение к сети."
+  server_didn_t_send_update:
+    en: "The server didn’t send the update. Try again later."
+    ru: "Сервер не отдал обновление. Попробуйте позже."
+  download_was_interrupted_check_your:
+    en: "The download was interrupted. Check your network connection."
+    ru: "Загрузка оборвалась. Проверьте подключение к сети."
+  downloaded_file_doesn_t_match:
+    en: "The downloaded file doesn’t match the one on the server. Try again."
+    ru: "Скачанный файл не совпал с тем, что на сервере. Попробуйте ещё раз."
+  only_installed_pult_in_applications:
+    en: "Only an installed Pult (in the Applications folder) can be updated."
+    ru: "Обновление ставится только в установленный пульт (из папки «Программы»)."
+  couldn_t_find_app_s:
+    en: "Couldn’t find the app’s folder."
+    ru: "Не найдена папка программы."
+  no_permission_to_change_parent:
+    en: "No permission to change %{parent}. Update Pult manually."
+    ru: "Нет прав менять %{parent}. Обновите пульт вручную."
+  couldn_t_open_installer:
+    en: "Couldn’t open the installer."
+    ru: "Не удалось открыть установщик."
+  installer_doesn_t_contain_pult:
+    en: "The installer doesn’t contain Pult."
+    ru: "В установщике нет пульта."
+  app_s_signature_didn_t:
+    en: "The app’s signature didn’t pass verification."
+    ru: "Подпись программы не прошла проверку."
+  app_s_signature_can_t:
+    en: "The app’s signature can’t be read."
+    ru: "Подпись программы не читается."
+  app_is_signed_by_different:
+    en: "The app is signed by a different developer."
+    ru: "Программа подписана не тем разработчиком."
+  installer_has_version_version_not:
+    en: "The installer has version %{version}, not %{version2}."
+    ru: "В установщике версия %{version}, а не %{version2}."
+  version_version_is_available:
+    en: "Version %{version} is available"
+    ru: "Доступна версия %{version}"
+  update_not_installed:
+    en: "Update not installed"
+    ru: "Обновление не установлено"
+  updating_to_version:
+    en: "Updating to %{version}"
+    ru: "Обновление до %{version}"
+  update_pult_to_version:
+    en: "Update Pult to %{version}?"
+    ru: "Обновить пульт до %{version}?"
+  downloading_got_of_total:
+    en: "Downloading: %{got} of %{total}"
+    ru: "Загрузка: %{got} из %{total}"
+  verifying_signature:
+    en: "Verifying signature"
+    ru: "Проверка подписи"
+  installing_pult_will_restart:
+    en: "Installing. Pult will restart."
+    ru: "Установка. Пульт перезапустится."
+  close:
+    en: "Close"
+    ru: "Закрыть"
+  what_s_new:
+    en: "What’s new:"
+    ru: "Что нового:"
+  pult_will_close_and_reopen:
+    en: "Pult will close and reopen. Claude sessions keep running in the background."
+    ru: "Пульт закроется и откроется снова. Сессии Claude продолжат работать в фоне."
+  later:
+    en: "Later"
+    ru: "Позже"
+  update:
+    en: "Update"
+    ru: "Обновить"
+  version_version_is_available_size:
+    en: "Version %{version} is available (%{size} bytes)"
+    ru: "Доступна версия %{version} (%{size} байт)"
+  you_have_latest_version_env:
+    en: "You have the latest version, %{env}"
+    ru: "Установлена последняя версия %{env}"
+  downloaded_load_checksum_matches:
+    en: "Downloaded %{load}, checksum matches"
+    ru: "Скачано %{load}, сумма совпала"
+  signature_and_version_verified:
+    en: "Signature and version verified"
+    ru: "Подпись и версия проверены"
+  pult_version_will_replace_bundle:
+    en: "Pult %{version} will replace %{bundle} and open"
+    ru: "Пульт %{version} встанет на место %{bundle} и откроется"
+
+workspace:
+  session_stopped_with_error:
+    en: "The session stopped with an error"
+    ru: "Сессия остановилась с ошибкой"
+  session_failed_no_reason:
+    en: "Claude Code stopped this session and didn’t say why. Try again, or start a new session if it keeps failing."
+    ru: "Claude Code остановил эту сессию и не сообщил почему. Повторите или, если повторяется, начните новую сессию."
+  device_silent_session_may_run:
+    en: "Last heard from “%{device}” %{ago}: the session may still be running there. Continue here only if it is closed there, or if you are sure."
+    ru: "Последняя связь с «%{device}» — %{ago}: сессия, возможно, ещё работает там. Продолжайте здесь, только если там она закрыта или вы в этом уверены."
+  what_it_does_row:
+    en: "What it does"
+    ru: "Чем занимается"
+  not_set:
+    en: "Not set"
+    ru: "Не указано"
+  change_about:
+    en: "Change…"
+    ru: "Изменить…"
+  what_it_does_title:
+    en: "What “%{name}” does"
+    ru: "Чем занимается «%{name}»"
+  what_neighbours_know:
+    en: "What this session knows about its neighbours"
+    ru: "Что эта сессия знает о соседях"
+  session_belongs_to_subproject:
+    en: "This session is pinned to the subproject “%{name}”. One conversation belongs to one subproject."
+    ru: "Эта сессия закреплена за подпроектом «%{name}». Одна переписка — у одного подпроекта."
+  name_split_into_first_and_second:
+    en: "“%{name}” is split into “%{first}” and “%{second}”."
+    ru: "«%{name}» разделён на «%{first}» и «%{second}»."
+  remove_subproject_name:
+    en: "Remove subproject “%{name}”?"
+    ru: "Убрать подпроект «%{name}»?"
+  subproject_will_be_removed:
+    en: "The subproject will be removed from Pult on all computers. The conversation stays on disk. If Claude is working, the current turn will stop."
+    ru: "Подпроект уберётся из пульта на всех компьютерах. Переписка останется на диске. Если Claude сейчас работает, ход оборвётся."
+  one_subproject_will_remain:
+    en: "“%{folder}” will be left with one subproject, “%{name}”, and become an ordinary project again."
+    ru: "В «%{folder}» останется один подпроект — «%{name}», и проект снова станет обычным."
+  project_and_subprojects_will_be_removed:
+    en: "The project and all its subprojects (%{count}) will be removed from Pult on all computers. The folder and conversations stay on disk. Turns Claude is working on will stop."
+    ru: "Проект и все его подпроекты (%{count}) уберутся из пульта на всех компьютерах. Папка и переписки останутся на диске. Работающие ходы Claude оборвутся."
+  subproject_removed_project_ordinary:
+    en: "Subproject “%{name}” removed. “%{folder}” is an ordinary project again, with the “%{only}” conversation."
+    ru: "Подпроект «%{name}» убран. «%{folder}» снова обычный проект с перепиской «%{only}»."
+  subproject_removed:
+    en: "Subproject “%{name}” removed from Pult. The conversation is still on disk."
+    ru: "Подпроект «%{name}» убран из пульта. Переписка осталась на диске."
+  name_removed_with_subprojects:
+    en: "“%{name}” and its subprojects removed from Pult. The folder and conversations are still on disk."
+    ru: "«%{name}» с подпроектами убран из пульта. Папка и переписки остались на диске."
+  new_subproject_in_name_cmd:
+    en: "New subproject in “%{name}”…"
+    ru: "Новый подпроект в «%{name}»…"
+  split_name_into_subprojects_cmd:
+    en: "Split “%{name}” into subprojects…"
+    ru: "Разделить «%{name}» на подпроекты…"
+  choose_session_before_split:
+    en: "Pick a session first: its conversation becomes the first subproject."
+    ru: "Сначала выберите сессию: её переписка станет первым подпроектом."
+  count_subprojects:
+    one:
+      en: "%{count} subproject"
+      ru: "%{count} подпроект"
+    few:
+      en: "%{count} subprojects"
+      ru: "%{count} подпроекта"
+    many:
+      en: "%{count} subprojects"
+      ru: "%{count} подпроектов"
+  update_to_version:
+    en: "Update to %{version}…"
+    ru: "Обновить до %{version}…"
+  update_tooltip:
+    en: "You have %{current}. Opens a window with what’s new."
+    ru: "Сейчас %{current}. Откроется окно с описанием новой версии."
+  event_is_turned_off_in:
+    en: "%{event} is turned off in Pult: each project keeps one pinned session. To free up context, use /compact"
+    ru: "%{event} в пульте отключена: за проектом закреплена одна сессия. Освободить контекст — /compact"
+  you_have_latest_version_env:
+    en: "You have the latest version, %{env}."
+    ru: "Установлена последняя версия %{env}."
+  pult_updated_to_version:
+    en: "Pult updated to %{version}."
+    ru: "Пульт обновлён до %{version}."
+  device_didn_t_respond_for:
+    en: "“%{device}” didn’t respond for three minutes. Check that Pult is running there and online, then try again."
+    ru: "Компьютер «%{device}» не ответил за три минуты. Проверьте, что пульт там запущен и в сети, и повторите."
+  no_session:
+    en: "no session"
+    ru: "без сессии"
+  claude_is_working_current_turn:
+    en: "Claude is working — the current turn will stop"
+    ru: "Claude работает — ход оборвётся"
+  paused:
+    en: "paused"
+    ru: "на паузе"
+  will_pause_and_continue:
+    en: "will pause and continue"
+    ru: "встанет на паузу и продолжится"
+  pinned_another_session_previous_one:
+    en: "Pinned another session. The previous one is in Previous sessions."
+    ru: "Закреплена другая сессия. Прежняя — в истории."
+  restore:
+    en: "Restore"
+    ru: "Вернуть"
+  session_pinned_to_name:
+    en: "Session pinned to “%{name}”."
+    ru: "Сессия закреплена за «%{name}»."
+  stop_claude_in_name:
+    en: "Stop Claude in “%{name}”?"
+    ru: "Остановить Claude в «%{name}»?"
+  claude_is_working_right_now:
+    en: "Claude is working right now — the current turn will stop. The conversation is kept, and you can continue anytime."
+    ru: "Claude сейчас работает — текущий ход оборвётся. Переписка сохранится, продолжить можно в любой момент."
+  stop:
+    en: "Stop"
+    ru: "Остановить"
+  name_is_paused_conversation_is:
+    en: "“%{name}” is paused. The conversation is saved."
+    ru: "«%{name}» на паузе. Переписка сохранена."
+  restart_name_without_prompts:
+    en: "Restart “%{name}” without prompts?"
+    ru: "Перезапустить «%{name}» без вопросов?"
+  claude_is_working_right_now_2:
+    en: "Claude is working right now — the current turn will stop. The conversation is kept."
+    ru: "Claude сейчас работает — текущий ход оборвётся. Переписка сохранится."
+  restart:
+    en: "Restart"
+    ru: "Перезапустить"
+  session_restarted_without_permission_prompts:
+    en: "Session restarted without permission prompts."
+    ru: "Сессия перезапущена без вопросов о разрешениях."
+  claude_code_doesn_t_trust:
+    en: "Claude Code doesn’t trust this folder yet. Click “Continue” — Claude will ask in the terminal."
+    ru: "Claude Code ещё не доверяет этой папке. Нажмите «Продолжить» — Claude спросит в терминале."
+  continue_here:
+    en: "Continue here"
+    ru: "Продолжить здесь"
+  continue:
+    en: "Continue"
+    ru: "Продолжить"
+  pause:
+    en: "Pause"
+    ru: "Пауза"
+  nothing_to_pause:
+    en: "Nothing to pause"
+    ru: "Ставить на паузу нечего"
+  paused_count_session_sessions_that:
+    one:
+      en: "Paused %{count} session. Sessions that are working were left running."
+      ru: "На паузе: %{count}. Работающие сессии не тронуты."
+    few:
+      en: "Paused %{count} sessions. Sessions that are working were left running."
+      ru: "На паузе: %{count}. Работающие сессии не тронуты."
+    many:
+      en: "Paused %{count} sessions. Sessions that are working were left running."
+      ru: "На паузе: %{count}. Работающие сессии не тронуты."
+  path_copied:
+    en: "Path copied"
+    ru: "Путь скопирован"
+  these_folders_are_already_in:
+    en: "These folders are already in Pult"
+    ru: "Эти папки уже в пульте"
+  added_folder_one:
+    en: "Added folder %{one}"
+    ru: "Добавлена папка %{one}"
+  added_count_folder:
+    one:
+      en: "Added %{count} folder"
+      ru: "Добавлена %{count} папка"
+    few:
+      en: "Added %{count} folders"
+      ru: "Добавлены %{count} папки"
+    many:
+      en: "Added %{count} folders"
+      ru: "Добавлено %{count} папок"
+  pult_projects_live_only_in:
+    en: "Pult projects live only in the main folder, %{root}."
+    ru: "Проекты пульта лежат только в главной папке %{root}."
+  project_new_name_is_already:
+    en: "Project “%{new_name}” is already in Pult"
+    ru: "Проект «%{new_name}» уже есть в пульте"
+  error_everything_was_put_back:
+    en: "%{error} Everything was put back as it was."
+    ru: "%{error} Всё возвращено как было."
+  main_folder_is_now_to:
+    en: "The main folder is now %{to}. Sessions are in place."
+    ru: "Главная папка теперь %{to}. Сессии на своих местах."
+  project_is_now_to_session:
+    en: "The project is now %{to}. The session is in place."
+    ru: "Проект теперь %{to}. Сессия на месте."
+  continue_name:
+    en: "Continue “%{name}”"
+    ru: "Продолжить «%{name}»"
+  pause_name:
+    en: "Pause “%{name}”"
+    ru: "Пауза «%{name}»"
+  rename_name:
+    en: "Rename “%{name}”…"
+    ru: "Переименовать «%{name}»…"
+  remove_name_from_pult:
+    en: "Remove “%{name}” from Pult?"
+    ru: "Убрать «%{name}» из пульта?"
+  project_will_be_removed_from:
+    en: "The project will be removed from Pult on all computers. The folder and conversation stay on disk. If Claude is working, the current turn will stop."
+    ru: "Проект уберётся из пульта на всех компьютерах. Папка и переписка останутся на диске. Если Claude сейчас работает, ход оборвётся."
+  remove:
+    en: "Remove"
+    ru: "Убрать"
+  name_removed_from_pult_folder:
+    en: "“%{name}” removed from Pult. The folder and conversation are still on disk."
+    ru: "«%{name}» убран из пульта. Папка и переписка остались на диске."
+  choose_session:
+    en: "Choose session…"
+    ru: "Выбрать сессию…"
+  project_actions:
+    en: "Project actions"
+    ru: "Действия с проектом"
+  hide_connected_to_claude:
+    en: "Hide Connected to Claude"
+    ru: "Скрыть подключённое"
+  show_connected_to_claude:
+    en: "Show Connected to Claude"
+    ru: "Показать подключённое"
+  folder_not_found:
+    en: "folder not found"
+    ru: "папка не найдена"
+  on_another_computer:
+    en: "on another computer"
+    ru: "на другом компьютере"
+  waiting_for_answer_in_terminal:
+    en: "waiting for an answer in the terminal"
+    ru: "ждёт ответа в терминале"
+  no_session_chosen:
+    en: "no session chosen"
+    ru: "сессия не выбрана"
+  working:
+    en: "working"
+    ru: "работает"
+  waiting_for_you:
+    en: "waiting for you"
+    ru: "ждёт решения"
+  ready:
+    en: "ready"
+    ru: "готова"
+  no_projects:
+    en: "No projects"
+    ru: "Нет проектов"
+  create_project_or_add_folder:
+    en: "Create a project or add a folder to open its Claude session."
+    ru: "Создайте проект или добавьте папку, чтобы открыть её сессию Claude."
+  moving_folder:
+    en: "Moving the folder"
+    ru: "Переносим папку"
+  session_is_paused_while_folder:
+    en: "The session is paused while the folder and Claude Code data move. It will continue on its own afterward."
+    ru: "Сессия на паузе, пока папка и данные Claude Code переезжают. Потом она продолжится сама."
+  folder_not_found_2:
+    en: "Folder not found"
+    ru: "Папка не найдена"
+  path_is_no_longer_there:
+    en: "%{path} is no longer there. The session is saved — locate the project’s new folder."
+    ru: "%{path} больше нет на месте. Сессия сохранена — укажите, где теперь лежит проект."
+  locate_folder:
+    en: "Locate folder…"
+    ru: "Указать папку…"
+  new_session_didn_t_start:
+    en: "New session didn’t start"
+    ru: "Новая сессия не запустилась"
+  couldn_t_move_session:
+    en: "Couldn’t move the session"
+    ru: "Сессию не удалось перенести"
+  couldn_t_start_session:
+    en: "Couldn’t start the session"
+    ru: "Сессию не удалось запустить"
+  choose_existing:
+    en: "Choose existing…"
+    ru: "Выбрать существующую…"
+  starting_new_session_for_name:
+    en: "Starting a new session for “%{name}”."
+    ru: "Начинаем новую сессию «%{name}»."
+  previous_session_was_empty_and:
+    en: "The previous session was empty and closed. Start a new one or choose an existing one."
+    ru: "Прежняя сессия была пустой и закрылась. Начните новую или выберите существующую."
+  name_keeps_one_pinned_claude:
+    en: "“%{name}” keeps one pinned Claude Code session. It reopens on its own after a restart."
+    ru: "За «%{name}» закрепляется одна сессия Claude Code. После перезапуска она откроется сама."
+  session_is_starting:
+    en: "Session is starting"
+    ru: "Сессия запускается"
+  no_session_chosen_2:
+    en: "No session chosen"
+    ru: "Сессия не выбрана"
+  new_session:
+    en: "New session"
+    ru: "Новая сессия"
+  can_t_reach_sync_server:
+    en: "Can’t reach the sync server. The move will continue on its own when the connection is back."
+    ru: "Нет связи с сервером синхронизации. Перенос продолжится сам, когда связь вернётся."
+  it_pauses_there_and_latest:
+    en: "It pauses there and the latest message comes here. This usually takes a few seconds."
+    ru: "Там она встаёт на паузу, сюда приходит последнее сообщение. Обычно это несколько секунд."
+  moving_session_from_device:
+    en: "Moving the session from “%{device}”"
+    ru: "Переносим сессию с «%{device}»"
+  session_continued_on_device:
+    en: "Session continued on “%{device}”"
+    ru: "Сессию продолжили на «%{device}»"
+  it_s_paused_here_so:
+    en: "It’s paused here so the conversation doesn’t diverge."
+    ru: "Здесь она на паузе, чтобы переписка не разошлась."
+  session_is_open_on_device:
+    en: "Session is open on “%{device}”"
+    ru: "Сессия открыта на «%{device}»"
+  session_runs_in_one_place:
+    en: "A session runs in one place at a time, otherwise the conversation diverges. “Continue here” pauses it there and opens it here from the latest message."
+    ru: "Одна сессия работает в одном месте, иначе переписка разойдётся. «Продолжить здесь» поставит её там на паузу и откроет здесь с последнего сообщения."
+  picking_up_name_where_it:
+    en: "Picking up “%{name}” where it left off."
+    ru: "Поднимаем переписку «%{name}» с того же места."
+  session_is_open_in_another:
+    en: "Session is open in another window"
+    ru: "Сессия открыта в другом окне"
+  close_it_there_pult_will:
+    en: "Close it there — Pult will connect on its own. A session can’t run in two places at once: some messages would be lost."
+    ru: "Закройте её там — пульт подключится сам. Одну сессию нельзя вести в двух местах сразу: часть сообщений потеряется."
+  name_is_paused:
+    en: "“%{name}” is paused"
+    ru: "«%{name}» на паузе"
+  claude_is_stopped_and_uses:
+    en: "Claude is stopped and uses no memory. The conversation is saved."
+    ru: "Claude остановлен и не занимает память. Переписка сохранена."
+  on_another_computer_2:
+    en: "On another computer"
+    ru: "На другом компьютере"
+  moving:
+    en: "Moving…"
+    ru: "Переносится…"
+  starting:
+    en: "Starting…"
+    ru: "Запускается…"
+  working_2:
+    en: "Working"
+    ru: "Работает"
+  waiting_for_you_2:
+    en: "Waiting for you"
+    ru: "Ждёт решения"
+  waiting_row:
+    en: "Waiting for"
+    ru: "Ждёт"
+  waiting_reason_input:
+    en: "Your answer"
+    ru: "Вашего ответа"
+  session_followed:
+    en: "%{name}: the session moved on to a new conversation (/clear, /branch or /resume) — Pult follows it."
+    ru: "%{name}: сессия перешла в новую переписку (/clear, /branch или /resume) — Пульт перешёл за ней."
+  ready_2:
+    en: "Ready"
+    ru: "Готова"
+  paused_2:
+    en: "Paused"
+    ru: "На паузе"
+  session:
+    en: "Session"
+    ru: "Сессия"
+  session_is_saved_locate_project:
+    en: "The session is saved. Locate the project’s new folder and it will open there."
+    ru: "Сессия сохранена. Укажите, где теперь лежит проект, — она откроется там же."
+  mb_mb:
+    en: "%{mb} MB"
+    ru: "%{mb} МБ"
+  activity:
+    en: "Activity"
+    ru: "Активность"
+  memory:
+    en: "Memory"
+    ru: "Память"
+  permissions:
+    en: "Permissions"
+    ru: "Разрешения"
+  no_prompts:
+    en: "No prompts"
+    ru: "Без вопросов"
+  asks:
+    en: "Asks"
+    ru: "Спрашивает"
+  restart_without_prompts:
+    en: "Don’t ask"
+    ru: "Не спрашивать"
+  claude_will_stop_asking_permission:
+    en: "Restarts the session; Claude stops asking permission for commands and file edits"
+    ru: "Сессия перезапустится, и Claude перестанет спрашивать разрешение на команды и правки файлов"
+  copy_session_id:
+    en: "Copy session ID"
+    ru: "Скопировать ID сессии"
+  session_id_copied:
+    en: "Session ID copied"
+    ru: "ID сессии скопирован"
+  previous_sessions:
+    en: "Previous sessions"
+    ru: "Прежние сессии"
+  until_until:
+    en: "until %{until}"
+    ru: "до %{until}"
+  current_session_moves_to_previous:
+    en: "The current session moves to Previous sessions — you can restore it later."
+    ru: "Текущая сессия уйдёт в «Прежние» — её можно будет вернуть."
+  each_project_keeps_one_pinned:
+    en: "Each project keeps one pinned session. It reopens on its own after Pult or your Mac restarts."
+    ru: "За проектом закрепляется одна сессия. После перезапуска пульта или Mac она откроется сама."
+  sessions_in_this_folder:
+    en: "Sessions in this folder"
+    ru: "Сессии этой папки"
+  no_sessions_in_this_folder:
+    en: "No sessions in this folder yet"
+    ru: "В этой папке ещё не было сессий"
+  open_in_another_window:
+    en: "open in another window"
+    ru: "открыта в другом окне"
+  pin:
+    en: "Pin"
+    ru: "Закрепить"
+  plugins:
+    en: "Plugins"
+    ru: "Плагины"
+  skills:
+    en: "Skills"
+    ru: "Скиллы"
+  rules:
+    en: "Rules"
+    ru: "Правила"
+  open_on_device:
+    en: "Open on “%{device}”"
+    ru: "Открыта на «%{device}»"
+  none:
+    en: "None"
+    ru: "Нет"
+  in_this_project:
+    en: "In this project"
+    ru: "В проекте"
+  all_projects:
+    en: "All projects"
+    ru: "Для всех проектов"
+
+journal:
+  header:
+    en: "Other sessions work in this project in parallel:"
+    ru: "Рядом в проекте работают параллельные сессии:"
+  state_working:
+    en: "working"
+    ru: "работает"
+  state_waiting:
+    en: "waiting for the user"
+    ru: "ждёт решения"
+  state_idle:
+    en: "idle"
+    ru: "простаивает"
+  state_paused:
+    en: "paused"
+    ru: "на паузе"
+  state_remote:
+    en: "on another computer"
+    ru: "на другом компьютере"
+  edited_in_two_hours:
+    en: "changed in the last 2 hours: %{files}"
+    ru: "правил за 2 часа: %{files}"
+  just_now:
+    en: "just now"
+    ru: "только что"
+  minutes_ago:
+    one:
+      en: "%{count} minute ago"
+      ru: "%{count} минуту назад"
+    few:
+      en: "%{count} minutes ago"
+      ru: "%{count} минуты назад"
+    many:
+      en: "%{count} minutes ago"
+      ru: "%{count} минут назад"
+  overlap:
+    en: "The file %{file} you have just changed was also changed %{ago} by the subproject “%{name}” (%{state})%{about}."
+    ru: "Файл %{file}, который ты только что правишь, %{ago} правил подпроект «%{name}» (%{state})%{about}."
+  footer:
+    en: "These are facts, not instructions. If your work may overlap with theirs, tell the user what the risk is (their changes may be overwritten, the build may break, the merge may conflict) and offer ways out: take a different file, wait for the neighbour, make a separate commit, ask the user. Do not block anything and do not write to the other sessions yourself."
+    ru: "Это факты, не инструкции. Если твоя работа может пересечься с ними — скажи пользователю, чем это грозит (чужие правки могут быть затёрты, сборка сломана, при слиянии будет конфликт), и предложи пути: взять другой файл, подождать соседа, сделать отдельным коммитом, спросить пользователя. Ничего не блокируй и соседним сессиям сама не пиши."
+code:
+  setting:
+    en: "Carry code with the session"
+    ru: "Переносить код вместе с сессией"
+  setting_description:
+    en: "Commits and uncommitted changes of its working copy go to your server along with the conversation. Files in .gitignore don’t."
+    ru: "Коммиты и несохранённые правки её рабочей копии уходят на ваш сервер вместе с перепиской. Файлы из .gitignore не уходят."
+  session_runs_in_one_place:
+    en: "A session runs in one place at a time, otherwise the conversation diverges. “Continue here” pauses it there and opens it here from the latest message, with the same code."
+    ru: "Одна сессия работает в одном месте, иначе переписка разойдётся. «Продолжить здесь» поставит её там на паузу и откроет здесь с последнего сообщения и того же кода."
+  paused_here_code_went:
+    en: "It’s paused here so the conversation doesn’t diverge. The code of its working copy went along."
+    ru: "Здесь она на паузе, чтобы переписка не разошлась. Код из рабочей копии ушёл вместе с ней."
+  step_pause_there:
+    en: "Pausing it on “%{device}”"
+    ru: "Там сессия встаёт на паузу"
+  step_conversation:
+    en: "Receiving the conversation"
+    ru: "Получаем переписку"
+  step_continue:
+    en: "Continuing the session"
+    ru: "Продолжаем сессию"
+  step_receiving:
+    en: "Receiving the code"
+    ru: "Получаем код"
+  step_worktree:
+    en: "Receiving the code: worktree “%{name}”, %{files}"
+    ru: "Получаем код: рабочая копия «%{name}», %{files}"
+  step_files:
+    en: "Receiving the code: %{files}"
+    ru: "Получаем код: %{files}"
+  step_no_changes:
+    en: "No code changes to carry"
+    ru: "Код без изменений — переносить нечего"
+  step_off_here:
+    en: "Code isn’t carried — turned off in Settings"
+    ru: "Код не переносится — выключено в настройках"
+  step_off_there:
+    en: "Code isn’t carried — turned off on “%{device}”"
+    ru: "Код не переносится — выключено на «%{device}»"
+  step_nogit:
+    en: "Code isn’t carried — the folder isn’t a git repository"
+    ru: "Код не переносится — папка не под git"
+  step_big:
+    en: "Receiving the code: changes over 24 MB"
+    ru: "Получаем код: правки больше 24 МБ"
+  changed_files:
+    one:
+      en: "%{count} changed file"
+      ru: "%{count} изменённый файл"
+    few:
+      en: "%{count} changed files"
+      ru: "%{count} изменённых файла"
+    many:
+      en: "%{count} changed files"
+      ru: "%{count} изменённых файлов"
+  files:
+    one:
+      en: "%{count} file"
+      ru: "%{count} файл"
+    few:
+      en: "%{count} files"
+      ru: "%{count} файла"
+    many:
+      en: "%{count} files"
+      ru: "%{count} файлов"
+  not_in_place:
+    en: "The code from “%{device}” isn’t in place"
+    ru: "Код с «%{device}» не встал на место"
+  dirty:
+    en: "The folder “%{name}” here has its own uncommitted changes: %{files}. To keep them, Pult didn’t lay the code over them and saved it in the branch “%{branch}”."
+    ru: "Здесь в папке «%{name}» есть свои несохранённые правки — %{files}. Чтобы их не затереть, пульт код не накладывал и сохранил его в ветке «%{branch}»."
+  big:
+    en: "The changes on “%{device}” are %{size} MB, over the 24 MB Pult sends. Commit them there and push the branch, then try again — or continue without them."
+    ru: "Правки на «%{device}» — %{size} МБ, больше 24 МБ, которые передаёт пульт. Сделайте там коммит и отправьте ветку, потом повторите. Или продолжите без них."
+  no_repo:
+    en: "The folder “%{name}” here isn’t a git repository and isn’t empty, so Pult left it alone."
+    ru: "Папка «%{name}» здесь не под git и не пустая — пульт не стал её трогать."
+  fetch:
+    en: "The session worked from commits that aren’t here, and Pult couldn’t get them from origin. Check the network and access to the repository, then try again."
+    ru: "Сессия работала от коммитов, которых здесь нет, а забрать их из origin не вышло. Проверьте сеть и доступ к репозиторию и повторите."
+  clone:
+    en: "The repository isn’t on this computer, and Pult couldn’t clone %{remote}: no access. Sign in to GitHub here (for example, gh auth login) or add an SSH key, then try again."
+    ru: "Репозитория на этом компьютере нет, а склонировать %{remote} не вышло: нет доступа. Войдите здесь в GitHub (например, gh auth login) или добавьте SSH-ключ и повторите."
+  not_arrived:
+    en: "The code from “%{device}” hasn’t arrived from the sync server. Check the connection and try again."
+    ru: "Код с «%{device}» ещё не пришёл с сервера синхронизации. Проверьте связь и повторите."
+  failed:
+    en: "Git stopped with: %{message}"
+    ru: "Git остановился: %{message}"
+  continue_without_code:
+    en: "Continue Without Code"
+    ru: "Продолжить без кода"
+  continues_without_code:
+    en: "The session continues here without the code from “%{device}”."
+    ru: "Сессия продолжается здесь без кода с «%{device}»."
+  continues_without_code_kept:
+    en: "The session continues here without the code from “%{device}”. It’s kept in the branch “%{branch}”."
+    ru: "Сессия продолжается здесь без кода с «%{device}». Он сохранён в ветке «%{branch}»."
+  paused_code_stayed:
+    en: "The session is paused. Its code stayed on “%{device}”."
+    ru: "Сессия на паузе. Её код остался на «%{device}»."
+  branch_renamed:
+    en: "The branch “%{wanted}” is different here, so the code from “%{device}” went into “%{used}”. Your “%{wanted}” is untouched."
+    ru: "Ветка «%{wanted}» здесь другая — код с «%{device}» встал в «%{used}». Ваша «%{wanted}» не тронута."
+  row:
+    en: "Code"
+    ru: "Код"
+  row_not_carried:
+    en: "Not carried"
+    ru: "Не переносится"
+  row_no_sync:
+    en: "Sync isn’t connected"
+    ru: "Синхронизация не подключена"
+  row_off:
+    en: "Turned off in Settings"
+    ru: "Выключено в настройках"
+  row_nogit:
+    en: "The folder isn’t a git repository"
+    ru: "Папка не под git"
+  row_big:
+    en: "Changes over 24 MB (%{size} MB). Goes once committed"
+    ru: "Правки больше 24 МБ (%{size} МБ). После коммита уйдёт сам"
+  row_no_snapshot:
+    en: "No snapshot yet"
+    ru: "Снимка ещё нет"
+  row_after_answer:
+    en: "Made after Claude’s next answer"
+    ru: "Появится после следующего ответа Claude"
+  row_worktree:
+    en: "Worktree “%{name}”"
+    ru: "Рабочая копия «%{name}»"
+  row_checkout:
+    en: "Main folder"
+    ru: "Основная папка"
+  row_no_changes:
+    en: "no changes"
+    ru: "без изменений"
+  row_snapshot:
+    en: "Snapshot on the server — %{when}"
+    ru: "На сервере — снимок %{when}"
+
+models:
+  page:
+    en: "Models"
+    ru: "Модели"
+  chip_tooltip:
+    en: "Claude Code models: %{name}. Change"
+    ru: "Модели Claude Code: %{name}. Сменить"
+  menu_label:
+    en: "Claude Code models"
+    ru: "Модели Claude Code"
+  claude:
+    en: "Claude"
+    ru: "Claude"
+  glm:
+    en: "GLM"
+    ru: "GLM"
+  glm_option:
+    en: "GLM (Z.ai)"
+    ru: "GLM (Z.ai)"
+  menu_claude_hint:
+    en: "Anthropic subscription, as usual"
+    ru: "Подписка Anthropic, как обычно"
+  menu_key_needed:
+    en: "Key needed"
+    ru: "Нужен ключ"
+  menu_configure:
+    en: "Configure models…"
+    ru: "Настроить модели…"
+  provider_title:
+    en: "Models"
+    ru: "Модели"
+  status_claude:
+    en: "Claude Code is using Claude now"
+    ru: "Сейчас Claude Code ходит в Claude"
+  status_glm:
+    en: "Claude Code is using GLM now"
+    ru: "Сейчас Claude Code ходит в GLM"
+  plan_title:
+    en: "GLM plan"
+    ru: "Тариф GLM"
+  plan_hint:
+    en: "Sets the server address"
+    ru: "От него зависит адрес сервера"
+  plan_global:
+    en: "International"
+    ru: "Международный"
+  plan_china:
+    en: "China"
+    ru: "Китай"
+  key_title:
+    en: "API key"
+    ru: "API-ключ"
+  key_placeholder:
+    en: "Key from your Z.ai account"
+    ru: "Ключ из кабинета Z.ai"
+  key_empty:
+    en: "Paste the key from your Z.ai account"
+    ru: "Вставьте ключ из кабинета Z.ai"
+  key_saved:
+    en: "Key saved"
+    ru: "Ключ сохранён"
+  key_checking:
+    en: "Checking…"
+    ru: "Проверяю…"
+  key_ok:
+    en: "Key is valid"
+    ru: "Ключ действует"
+  key_rejected:
+    en: "The key was rejected — copy it in full"
+    ru: "Ключ не подошёл — скопируйте его целиком"
+  key_offline:
+    en: "Can’t reach Z.ai — key saved"
+    ru: "Нет связи с Z.ai — ключ сохранён"
+  main_title:
+    en: "Main model"
+    ru: "Основная модель"
+  main_hint:
+    en: "For Sonnet and Opus"
+    ru: "Для Sonnet и Opus"
+  small_title:
+    en: "Light model"
+    ru: "Лёгкая модель"
+  small_hint:
+    en: "For Haiku"
+    ru: "Для Haiku"
+  warn_shell:
+    en: "Your shell sets ANTHROPIC_BASE_URL or ANTHROPIC_API_KEY, which can override the choice. Remove them from ~/.zshrc."
+    ru: "В оболочке заданы ANTHROPIC_BASE_URL или ANTHROPIC_API_KEY — они могут перебить выбор. Уберите их из ~/.zshrc."
+  warn_model:
+    en: "Claude Code settings pin the model “%{model}”, which GLM doesn’t know. Change it to sonnet, opus or haiku."
+    ru: "В настройках Claude Code закреплена модель «%{model}», GLM её не знает. Замените её на sonnet, opus или haiku."
+  need_key:
+    en: "Enter a GLM key to switch to it."
+    ru: "Введите ключ GLM, чтобы перейти на него."
+  ask_title_glm:
+    en: "Switch to GLM?"
+    ru: "Перейти на GLM?"
+  ask_title_claude:
+    en: "Switch back to Claude?"
+    ru: "Вернуться на Claude?"
+  ask_turns:
+    en: "Turns in progress: %{n}. They will be cut off, and the sessions will continue from the same place on %{to}."
+    ru: "Идущих ходов: %{n}. Они оборвутся, и сессии продолжатся с того же места уже на %{to}."
+  ask_restart:
+    en: "Sessions to restart: %{n}. Stopped ones pick up the new settings when you continue them."
+    ru: "Перезапустится сессий: %{n}. Остановленные подхватят новые настройки, когда вы их продолжите."
+  go_glm:
+    en: "Switch and restart"
+    ru: "Перейти и перезапустить"
+  go_claude:
+    en: "Switch back and restart"
+    ru: "Вернуться и перезапустить"
+  run_title:
+    en: "Restarting sessions"
+    ru: "Перезапускаю сессии"
+  run_line:
+    en: "Restarted: %{done} of %{total}"
+    ru: "Перезапущено: %{done} из %{total}"
+  failed_title:
+    en: "Not all sessions came back"
+    ru: "Не все сессии поднялись"
+  failed_body:
+    en: "Didn’t restart: %{names}. The rest run on %{to}. Press Continue in those projects."
+    ru: "Не перезапустились: %{names}. Остальные работают на %{to}. Нажмите «Продолжить» в этих проектах."
+  failed_ok:
+    en: "Got it"
+    ru: "Понятно"
+  done:
+    en: "Now using %{to}."
+    ru: "Теперь модели: %{to}."
+  done_restarted:
+    en: "Now using %{to}. Sessions restarted: %{n}."
+    ru: "Теперь модели: %{to}. Перезапущено сессий: %{n}."
+  write_failed:
+    en: "Couldn’t write the Claude Code settings: %{reason}"
+    ru: "Не удалось записать настройки Claude Code: %{reason}"
+  cmd_to_glm:
+    en: "Models: switch to GLM"
+    ru: "Модели: перейти на GLM"
+  cmd_to_claude:
+    en: "Models: switch back to Claude"
+    ru: "Модели: вернуться на Claude"
+  cmd_settings:
+    en: "Models: settings…"
+    ru: "Модели: настройки…"
