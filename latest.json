@@ -1,9 +1,10 @@
 {
-  "version": "0.1.0",
-  "sha256": "41d184714a9a752aba10f1168803361396dd2babe11a9ec9a4bed9e776fc35c7",
-  "size": 15715353,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.0/Pult-0.1.0.dmg",
+  "version": "0.1.1",
+  "sha256": "c8d6e8fe8015fcdb3b56690440bb5fbb3027e9d62eba90d16ed9fa349ce9e78e",
+  "size": 15728951,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.1/Pult-0.1.1.dmg",
   "notes": [
-    "First public release."
+    "On first launch Pult asks which folder holds your projects; any folder on the computer will do.",
+    "While Pult has no projects, Settings → Folders can switch the main folder without moving it."
   ]
 }
