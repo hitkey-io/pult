@@ -1,10 +1,9 @@
 {
-  "version": "0.1.1",
-  "sha256": "c8d6e8fe8015fcdb3b56690440bb5fbb3027e9d62eba90d16ed9fa349ce9e78e",
-  "size": 15728951,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.1/Pult-0.1.1.dmg",
+  "version": "0.1.2",
+  "sha256": "aa5a202f42f2b5dfc37b63e87088bf89e29255eb0ca917a6fe10d572691162a7",
+  "size": 15759391,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.2/Pult-0.1.2.dmg",
   "notes": [
-    "On first launch Pult asks which folder holds your projects; any folder on the computer will do.",
-    "While Pult has no projects, Settings → Folders can switch the main folder without moving it."
+    "Clone a subproject: a new subproject starts from a copy of its conversation and goes on separately."
   ]
 }
