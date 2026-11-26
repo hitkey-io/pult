@@ -1,6 +1,6 @@
 [package]
 name = "pult"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 
 [dependencies]
@@ -11,6 +11,8 @@ serde_json = { version = "1", features = ["preserve_order"] }
 dirs = "5"
 memchr = "2"
 alacritty_terminal = "0.26"
+# The poll types of `alacritty_terminal`'s PTY interface (`EventedReadWrite`); the same version it uses.
+polling = "3.11.0"
 futures = "0.3.34"
 ureq = "3"
 zstd = "0.14.4"

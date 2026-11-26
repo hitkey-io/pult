@@ -162,6 +162,15 @@ pub struct ClearBlocked(pub String);
 
 impl EventEmitter<ClearBlocked> for Terminal {}
 
+/// The program in a project terminal reported its state over OSC 7501 (Claude Code does). `None` — it stopped
+/// reporting: the terminal's process ended or the terminal was closed.
+pub struct ProgramStatus {
+    pub id: String,
+    pub report: Option<crate::program_status::Report>,
+}
+
+impl EventEmitter<ProgramStatus> for Terminal {}
+
 /// Emulator and PTY events arrive on the reader thread — forward them to the UI through a channel.
 #[derive(Clone)]
 struct Listener(mpsc::UnboundedSender<TermEvent>);
@@ -204,6 +213,7 @@ struct Session {
     /// When the process was started: a program that has just started is still drawing itself.
     opened: std::time::Instant,
     _events: Task<()>,
+    _status: Task<()>,
 }
 
 impl Session {
@@ -297,14 +307,15 @@ impl Terminal {
         {
             return;
         }
-        self.sessions.remove(id);
+        self.close(id, cx);
         self.spawn(id.to_string(), cwd, args, cx);
         cx.notify();
     }
 
     /// Close the project terminal's process (the background Claude session keeps living).
-    pub fn close(&mut self, id: &str) {
+    pub fn close(&mut self, id: &str, cx: &mut Context<Self>) {
         self.sessions.remove(id);
+        cx.emit(ProgramStatus { id: id.to_string(), report: None });
     }
 
     /// The project's key changed (split into subprojects, or merged back): its terminal keeps running.
@@ -465,6 +476,9 @@ impl Terminal {
             }
         };
         let pid = Some(pty.child().id());
+        // The PTY answers the program's status query and keeps its reports out of the terminal.
+        let (status_tx, mut status_rx) = crate::program_status::channel();
+        let pty = crate::program_status::StatusPty::new(pty, status_tx);
         let event_loop = match EventLoop::new(term.clone(), listener, pty, false, false) {
             Ok(event_loop) => event_loop,
             Err(error) => {
@@ -476,6 +490,17 @@ impl Terminal {
         event_loop.spawn();
 
         let session_id = id.clone();
+        let status_id = id.clone();
+        let status = cx.spawn(async move |this, cx| {
+            while let Some(report) = status_rx.next().await {
+                let alive = this
+                    .update(cx, |this, cx| this.on_program_status(&status_id, report, cx))
+                    .is_ok();
+                if !alive {
+                    break;
+                }
+            }
+        });
         let events = cx.spawn(async move |this, cx| {
             while let Some(event) = events.next().await {
                 let alive = this
@@ -498,12 +523,13 @@ impl Terminal {
                 exited: false,
                 opened: std::time::Instant::now(),
                 _events: events,
+                _status: status,
             },
         );
     }
 
-    fn on_term_event(&mut self, id: &str, event: TermEvent, cx: &mut Context<Self>) {
-        // The key the process was started with may have changed since (`rekey`).
+    /// The key a terminal started under `id` has now (it may have changed since — `rekey`).
+    fn live_key(&self, id: &str) -> String {
         let mut id = id.to_string();
         for _ in 0..4 {
             match self.aliases.get(&id) {
@@ -511,6 +537,20 @@ impl Terminal {
                 _ => break,
             }
         }
+        id
+    }
+
+    /// A program in a project terminal reported its state; the window shows it for that project.
+    fn on_program_status(&mut self, id: &str, report: crate::program_status::Report, cx: &mut Context<Self>) {
+        let id = self.live_key(id);
+        crate::program_status::trace(&format!("{id} {}", report.describe()));
+        if self.sessions.contains_key(&id) {
+            cx.emit(ProgramStatus { id, report: Some(report) });
+        }
+    }
+
+    fn on_term_event(&mut self, id: &str, event: TermEvent, cx: &mut Context<Self>) {
+        let id = self.live_key(id);
         let id = id.as_str();
         let reported_size = self
             .sessions
@@ -519,6 +559,7 @@ impl Terminal {
         let Some(session) = self.sessions.get_mut(id) else {
             return;
         };
+        let mut ended = false;
         match event {
             TermEvent::Wakeup => {
                 if let Some(key) = self.trace_key {
@@ -553,6 +594,7 @@ impl Terminal {
             TermEvent::ChildExit(_) | TermEvent::Exit => {
                 if !session.exited {
                     session.exited = true;
+                    ended = true;
                     write_note(
                         &session.term,
                         t("terminal.disconnected_from_claude_session_press"),
@@ -560,6 +602,10 @@ impl Terminal {
                 }
             }
             TermEvent::Title(_) | TermEvent::ResetTitle | TermEvent::Bell => return,
+        }
+        // The program is gone: what it last reported no longer says what the session is doing.
+        if ended {
+            cx.emit(ProgramStatus { id: id.to_string(), report: None });
         }
         if self.current.as_deref() == Some(id) {
             cx.notify();
@@ -619,6 +665,7 @@ impl Terminal {
                 if let Some(session) = self.sessions.remove(&id) {
                     let (cwd, args) = (session.cwd.clone(), session.args.clone());
                     drop(session);
+                    cx.emit(ProgramStatus { id: id.clone(), report: None });
                     self.spawn(id, cwd, args, cx);
                     cx.notify();
                 }

@@ -10,6 +10,7 @@ mod journal;
 mod migrate;
 mod models;
 mod presence;
+mod program_status;
 mod projects;
 mod rename;
 mod sessions;

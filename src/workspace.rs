@@ -45,7 +45,8 @@ use crate::migrate::{self, Move};
 use crate::projects::{Project, ProjectStore, ThemePref, display_path, key_for, split_key};
 use crate::rename::{self, Target};
 use crate::sessions::{self, Activity, Agent, StartError, Transcript};
-use crate::terminal::{self, ClearBlocked, FontSizeChanged, Terminal};
+use crate::program_status::{Report, State};
+use crate::terminal::{self, ClearBlocked, FontSizeChanged, ProgramStatus, Terminal};
 
 /// How often the live registry is read (`~/.claude/sessions`): files only, no process is started.
 const LIVE_TICK: Duration = Duration::from_secs(1);
@@ -102,6 +103,9 @@ pub struct Workspace {
     /// Where sessions run: here (`presence.json`) and on other computers (`presence.rs`).
     presence: crate::presence::Presence,
     remote: std::collections::BTreeMap<String, crate::presence::Remote>,
+    /// What the program in an open project terminal last reported about itself (OSC 7501), by project. Only
+    /// while that terminal is connected to it: the terminal says when the program is gone.
+    program_status: HashMap<String, Report>,
     /// Projects whose session is being moved here from another computer: the session and when it was requested.
     handoff: HashMap<String, (String, u64)>,
     /// Projects whose session came here with "Continue here": from which computer (the steps stay on screen
@@ -222,6 +226,18 @@ impl Workspace {
             this.store.set_terminal_font_size(event.0);
         })
         .detach();
+        cx.subscribe(&terminal, |this, _, event: &ProgramStatus, cx| {
+            let changed = match &event.report {
+                // The program withdrew its record: nothing is known about it now.
+                Some(report) if report.state == State::Clear => this.program_status.remove(&event.id).is_some(),
+                Some(report) => this.program_status.insert(event.id.clone(), report.clone()) != Some(report.clone()),
+                None => this.program_status.remove(&event.id).is_some(),
+            };
+            if changed {
+                cx.notify();
+            }
+        })
+        .detach();
         cx.subscribe_in(&terminal, window, |_, _, event: &ClearBlocked, window, cx| {
             window.push_notification(
                 Notification::info(tr!("workspace.event_is_turned_off_in", event = event.0)),
@@ -266,6 +282,7 @@ impl Workspace {
             bound_here: HashSet::new(),
             memory: HashMap::new(),
             starting: HashSet::new(),
+            program_status: HashMap::new(),
             errors: HashMap::new(),
             pending_bind: HashMap::new(),
             dropped: HashSet::new(),
@@ -662,7 +679,7 @@ impl Workspace {
             if let Some(short) = self.agent(&session).filter(|agent| agent.is_background()).and_then(|agent| agent.id.clone()) {
                 cx.background_spawn(async move { sessions::stop(&short) }).detach();
             } else {
-                self.terminal.update(cx, |terminal, _| terminal.close(&id));
+                self.terminal.update(cx, |terminal, cx| terminal.close(&id, cx));
             }
             self.paused.insert(id.clone());
             self.releasing.insert(id, session);
@@ -749,6 +766,10 @@ impl Workspace {
         let session = project.session()?;
         if self.is_paused(project) {
             return Some(Activity::Stopped);
+        }
+        // An open terminal hears the program itself: at once, and not a poll later.
+        if let Some(report) = self.program_status.get(project.id()) {
+            return Some(activity_of(report.state));
         }
         Some(self.agent(session).map(Agent::activity).unwrap_or(Activity::Stopped))
     }
@@ -870,7 +891,7 @@ impl Workspace {
             .map(|project| project.id().to_string())
             .collect();
         for project in &inside {
-            self.terminal.update(cx, |terminal, _| terminal.close(project.id()));
+            self.terminal.update(cx, |terminal, cx| terminal.close(project.id(), cx));
             self.pending_bind.remove(project.id());
         }
         self.sync_terminal(cx);
@@ -930,6 +951,9 @@ impl Workspace {
         }
         // Nothing lives under the new key yet; leftovers of a removed project with that name go.
         self.forget_state(new);
+        if let Some(report) = self.program_status.remove(old) {
+            self.program_status.insert(new.to_string(), report);
+        }
         self.rekeyed.remove(new);
         self.rekeyed.insert(old.to_string(), new.to_string());
         if self.selected.as_deref() == Some(old) {
@@ -983,6 +1007,7 @@ impl Workspace {
         self.choice.remove(id);
         self.transcripts.remove(id);
         self.errors.remove(id);
+        self.program_status.remove(id);
         self.releasing.remove(id);
         if let Some((session, _)) = self.handoff.remove(id) {
             self.presence.takeover.remove(&session);
@@ -1099,7 +1124,7 @@ impl Workspace {
     /// about to end, and the placeholder "starting" shows meanwhile.
     pub(crate) fn models_restarting(&mut self, ids: &[String], cx: &mut Context<Self>) {
         for id in ids {
-            self.terminal.update(cx, |terminal, _| terminal.close(id));
+            self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
             self.paused.remove(id);
             self.starting.insert(id.clone());
         }
@@ -1153,7 +1178,7 @@ impl Workspace {
                 .and_then(|session| self.agent(session))
                 .is_some_and(Agent::is_background);
             if attached {
-                self.terminal.update(cx, |terminal, _| terminal.close(&previous));
+                self.terminal.update(cx, |terminal, cx| terminal.close(&previous, cx));
             }
         }
         self.selected = id;
@@ -1387,7 +1412,7 @@ impl Workspace {
             for id in &adopted.removed {
                 self.forget_state(id);
                 self.history.retain(|entry| entry != id);
-                self.terminal.update(cx, |terminal, _| terminal.close(id));
+                self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
             }
             self.history_index = self.history.len().saturating_sub(1);
             if adopted.changed {
@@ -1621,7 +1646,7 @@ impl Workspace {
     fn run_in_terminal(&mut self, id: &str, cwd: PathBuf, args: &[&str], cx: &mut Context<Self>) {
         let args = sessions::shell_args(args);
         let pid = self.terminal.update(cx, |terminal, cx| {
-            terminal.close(id);
+            terminal.close(id, cx);
             terminal.open(id, cwd, args, cx);
             terminal.pid(id)
         });
@@ -1641,7 +1666,7 @@ impl Workspace {
         self.switching.remove(id);
         self.errors.remove(id);
         self.dropped.remove(id);
-        self.terminal.update(cx, |terminal, _| terminal.close(id));
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         let old = project.session().map(str::to_string);
         let (id, cwd, name) = (id.to_string(), project.path().to_path_buf(), project.session_name());
         cx.spawn_in(window, async move |this, cx| {
@@ -1691,7 +1716,7 @@ impl Workspace {
         }
         let old = self.project(id).and_then(Project::session).map(str::to_string);
         self.switching.remove(id);
-        self.terminal.update(cx, |terminal, _| terminal.close(id));
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         self.store.bind(id, &session);
         self.bound_here.insert(session.clone());
         self.reload();
@@ -1792,7 +1817,7 @@ impl Workspace {
             });
             return;
         }
-        self.terminal.update(cx, |terminal, _| terminal.close(id));
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         self.pending_bind.remove(id);
         self.paused.insert(id.to_string());
         self.resumed.remove(id);
@@ -1839,7 +1864,7 @@ impl Workspace {
         if !self.starting.insert(id.to_string()) {
             return;
         }
-        self.terminal.update(cx, |terminal, _| terminal.close(id));
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         self.paused.remove(id);
         let (id, pid) = (id.to_string(), agent.pid);
         cx.spawn_in(window, async move |this, cx| {
@@ -1907,7 +1932,7 @@ impl Workspace {
         for (id, short) in &targets {
             self.paused.insert(id.clone());
             self.resumed.remove(id);
-            self.terminal.update(cx, |terminal, _| terminal.close(id));
+            self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
             let short = short.clone();
             cx.background_spawn(async move { sessions::stop(&short) }).detach();
         }
@@ -2687,7 +2712,7 @@ impl Workspace {
         for id in &ids {
             self.stop_session_of(id, cx);
             self.forget_state(id);
-            self.terminal.update(cx, |terminal, _| terminal.close(id));
+            self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         }
         self.store.remove_folder(folder);
         self.last_sub.remove(folder);
@@ -2763,7 +2788,7 @@ impl Workspace {
         self.reload();
         self.forget_state(id);
         self.history.retain(|entry| entry != id);
-        self.terminal.update(cx, |terminal, _| terminal.close(id));
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
         if self.last_sub.get(&folder).is_some_and(|last| last == id) {
             self.last_sub.remove(&folder);
         }
@@ -4302,6 +4327,17 @@ enum Failure {
     New,
     /// Move the session from another computer.
     Move,
+}
+
+/// What a state the program reported means for the project. `error` is for the person to look at, as a
+/// question or a permission is: the program stopped and says why.
+fn activity_of(state: State) -> Activity {
+    match state {
+        State::Working => Activity::Working,
+        State::Blocked | State::Error => Activity::Waiting,
+        State::Idle | State::Done => Activity::Ready,
+        State::Clear => Activity::Ready,
+    }
 }
 
 /// Tooltip on a list state icon: for a session on another computer — with that computer's name.

@@ -1,0 +1,1 @@
+The state of the open project (working, waiting, ready) now comes from Claude Code itself, so it changes at once.
