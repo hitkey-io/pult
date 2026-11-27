@@ -1,10 +1,9 @@
 {
-  "version": "0.1.4",
-  "sha256": "4738cd857cf0dba29143449296dbbf85920373fe56e6e32405f324c439272023",
-  "size": 15790752,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.4/Pult-0.1.4.dmg",
+  "version": "0.1.5",
+  "sha256": "4675a78c0cac23c92a886b359fa73891864f279ad9c84ff3a4e8bd5790861244",
+  "size": 15796176,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.5/Pult-0.1.5.dmg",
   "notes": [
-    "Option with a letter now works as Meta in the terminal, so Claude Code shortcuts such as Option+P (choose the model) work.",
-    "New \"Restart Session\" command in the project menu, the File menu and the command palette."
+    "Each project can keep a .pult folder (notes, bookmarks) that travels with its sessions to your other computers and stays out of git."
   ]
 }
