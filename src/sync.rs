@@ -22,6 +22,10 @@
 //! Receiving (`pull`) is the reverse: everything this computer lacks or that grew on the server
 //! lands in this computer's data folder (`dir_name_for`). A transcript is appended to only if
 //! it hasn't changed here since; if it diverged, it is left alone (`conflicts`).
+//!
+//! Each project folder may hold a `.pult` folder: notes, bookmarks, anything that belongs to the project but not to
+//! its git history. It travels with the sessions (`pult:folder/<root|home>/<path from the base>/<file>`), lands in the
+//! same project on the other computer and is kept out of git (`.git/info/exclude`).
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -163,8 +167,8 @@ struct State {
     receives: u32,
 }
 
-/// 1 — code snapshots (`pult:code/…`, 0.8).
-const RECEIVES: u32 = 1;
+/// 1 — code snapshots (`pult:code/…`, 0.8); 2 — the projects' `.pult` folders (`pult:folder/…`, 0.1.5).
+const RECEIVES: u32 = 2;
 
 /// Summary for the Settings window and `pult sync status`.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -426,6 +430,9 @@ fn scan(paths: &Paths, scope: &Scope) -> (Vec<Item>, BTreeMap<String, String>) {
                 }
             }
             walk(&history, "", "history:", &mut items);
+            for folder in project_folders(paths) {
+                dot_pult_items(paths, &folder, &mut items);
+            }
             if let Ok(entries) = fs::read_dir(crate::code::dir(paths)) {
                 for entry in entries.filter_map(Result::ok) {
                     let name = entry.file_name().to_string_lossy().into_owned();
@@ -447,6 +454,9 @@ fn scan(paths: &Paths, scope: &Scope) -> (Vec<Item>, BTreeMap<String, String>) {
                 }
                 walk(&dir.join(&session), &session, &place, &mut items);
                 walk(&dir.join("memory"), "memory", &place, &mut items);
+                if let Some(folder) = cwd.as_deref().and_then(|cwd| folder_of(paths, cwd)) {
+                    dot_pult_items(paths, &folder, &mut items);
+                }
             }
             walk(&history.join(&session), &session, "history:", &mut items);
             for (file, path) in crate::code::files(paths, &session) {
@@ -459,6 +469,102 @@ fn scan(paths: &Paths, scope: &Scope) -> (Vec<Item>, BTreeMap<String, String>) {
         items.push(item);
     }
     (items, places)
+}
+
+// ───────────────────────────── project `.pult` folders ─────────────────────────────
+
+/// The folder inside a project that travels with its sessions.
+pub const DOT_PULT: &str = ".pult";
+
+/// Folders of Pult's projects on this computer (subprojects share their folder), from `state.json`.
+fn project_folders(paths: &Paths) -> Vec<PathBuf> {
+    let state = read_json::<Value>(&paths.app.join("state.json")).unwrap_or_default();
+    let mut folders: Vec<PathBuf> = state
+        .get("projects")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|project| project.get("path").and_then(Value::as_str).map(PathBuf::from))
+        .collect();
+    folders.sort();
+    folders.dedup();
+    folders
+}
+
+/// The project folder a working folder belongs to (a session may run in a subfolder or a git worktree of it).
+fn folder_of(paths: &Paths, cwd: &Path) -> Option<PathBuf> {
+    project_folders(paths).into_iter().filter(|folder| cwd.starts_with(folder)).max_by_key(|folder| folder.as_os_str().len())
+}
+
+/// The base-independent name of a project folder on the server: `root/<path>` or `home/<path>`, `/` in the path as
+/// `%2F` (the rest of the file name is the path inside `.pult`). `None` — the folder is outside both.
+fn folder_key(paths: &Paths, folder: &Path) -> Option<String> {
+    let (base, rel) = match strip_base(folder, &paths.root) {
+        Some(rel) => ("root", rel),
+        None => ("home", strip_base(folder, &paths.home)?),
+    };
+    let rel = rel.to_str()?;
+    (!rel.is_empty()).then(|| format!("{base}/{}", rel.replace('%', "%25").replace('/', "%2F")))
+}
+
+/// The project folder on this computer for a `folder_key`, and the file's path inside `.pult`.
+fn folder_path(paths: &Paths, file: &str) -> Option<PathBuf> {
+    let mut parts = file.splitn(3, '/');
+    let (base, rel, inner) = (parts.next()?, parts.next()?, parts.next()?);
+    let base = match base {
+        "root" => &paths.root,
+        "home" => &paths.home,
+        _ => return None,
+    };
+    let rel = PathBuf::from(rel.replace("%2F", "/").replace("%25", "%"));
+    let inner = Path::new(inner);
+    let normal = |path: &Path| !path.as_os_str().is_empty() && path.components().all(|part| matches!(part, std::path::Component::Normal(_)));
+    if !normal(&rel) || !normal(inner) {
+        return None;
+    }
+    // Only into a project folder that exists here: Pult creates the folders of shared projects itself.
+    let folder = base.join(rel);
+    if !folder.is_dir() {
+        return None;
+    }
+    exclude_from_git(&folder);
+    Some(folder.join(DOT_PULT).join(inner))
+}
+
+/// Files of a project's `.pult` folder to keep on the server; the folder is kept out of git on the way.
+fn dot_pult_items(paths: &Paths, folder: &Path, items: &mut Vec<Item>) {
+    let dir = folder.join(DOT_PULT);
+    if !dir.is_dir() {
+        return;
+    }
+    let Some(key) = folder_key(paths, folder) else { return };
+    exclude_from_git(folder);
+    let mut found = Vec::new();
+    walk(&dir, &format!("folder/{key}"), "pult:", &mut found);
+    // Whole files: a `.jsonl` here is a note, not a transcript to append to.
+    items.extend(found.into_iter().map(|item| Item { log: false, ..item }));
+}
+
+/// Keep `.pult` out of the project's git: a line in `.git/info/exclude` (not `.gitignore` — that one is the
+/// team's and is committed). Best effort; a worktree (`.git` is a file) is left alone.
+pub fn exclude_from_git(folder: &Path) {
+    let git = folder.join(".git");
+    if !git.is_dir() {
+        return;
+    }
+    let path = git.join("info").join("exclude");
+    let text = fs::read_to_string(&path).unwrap_or_default();
+    let line = format!("/{DOT_PULT}/");
+    if text.lines().any(|existing| existing.trim() == line || existing.trim() == format!("/{DOT_PULT}")) {
+        return;
+    }
+    let mut text = text;
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text.push_str(&line);
+    text.push('\n');
+    let _ = fs::create_dir_all(git.join("info")).and_then(|()| fs::write(&path, text));
 }
 
 /// Name of our own snapshot in the `shared` folder (`None` — sync isn't connected).
@@ -1264,6 +1370,9 @@ fn local_path(paths: &Paths, place: &str, file: &str) -> Option<PathBuf> {
         if let Some(name) = file.strip_prefix("code/") {
             return crate::code::is_code_file(name).then(|| crate::code::dir(paths).join(name));
         }
+        if let Some(rest) = file.strip_prefix("folder/") {
+            return folder_path(paths, rest);
+        }
         let simple = !file.contains('/') && file.starts_with("projects-") && file.ends_with(".json");
         return simple.then(|| shared_dir(paths).join(file));
     }
@@ -1821,6 +1930,48 @@ mod tests {
         assert_eq!(local_path(&paths, "abs:../x", "a"), None);
     }
 
+    #[test]
+    fn a_projects_dot_pult_folder_goes_out_and_lands_in_the_same_project_elsewhere() {
+        let here = temp_paths("dotpult-here");
+        let project = here.root.join("EMBER");
+        fs::create_dir_all(project.join(".pult/links")).unwrap();
+        fs::create_dir_all(project.join(".git/info")).unwrap();
+        fs::write(project.join(".pult/ideas.md"), "- https://example.com\n").unwrap();
+        fs::write(project.join(".pult/links/notes.jsonl"), "{}\n").unwrap();
+        let state = json!({"root": here.root, "projects": [{"path": project}, {"path": project, "sub": "B"}]});
+        fs::write(here.app.join("state.json"), state.to_string()).unwrap();
+
+        let (items, _) = scan(&here, &Scope::All);
+        let mut files: Vec<_> = items.iter().filter(|item| item.file.starts_with("folder/")).map(|item| (item.file.clone(), item.log)).collect();
+        files.sort();
+        // One folder for both subprojects; whole files, even a `.jsonl`.
+        assert_eq!(files, vec![("folder/root/EMBER/ideas.md".to_string(), false), ("folder/root/EMBER/links/notes.jsonl".to_string(), false)]);
+        // Kept out of git, once.
+        scan(&here, &Scope::All);
+        assert_eq!(fs::read_to_string(project.join(".git/info/exclude")).unwrap(), "/.pult/\n");
+
+        // Another computer, the main folder elsewhere: the file lands in its project folder, if that folder exists.
+        let there = temp_paths("dotpult-there");
+        assert_eq!(local_path(&there, "pult:", "folder/root/EMBER/ideas.md"), None);
+        fs::create_dir_all(there.root.join("EMBER")).unwrap();
+        assert_eq!(local_path(&there, "pult:", "folder/root/EMBER/ideas.md"), Some(there.root.join("EMBER/.pult/ideas.md")));
+        assert_eq!(local_path(&there, "pult:", "folder/root/EMBER/links/notes.jsonl"), Some(there.root.join("EMBER/.pult/links/notes.jsonl")));
+    }
+
+    #[test]
+    fn a_dot_pult_name_cannot_leave_its_folder() {
+        let paths = temp_paths("dotpult-escape");
+        fs::create_dir_all(paths.root.join("EMBER")).unwrap();
+        fs::create_dir_all(paths.home.join("Documents/x")).unwrap();
+        assert_eq!(folder_key(&paths, &paths.home.join("Documents/x")), Some("home/Documents%2Fx".into()));
+        assert_eq!(local_path(&paths, "pult:", "folder/home/Documents%2Fx/a.md"), Some(paths.home.join("Documents/x/.pult/a.md")));
+        assert_eq!(local_path(&paths, "pult:", "folder/root/..%2F..%2Fetc/a.md"), None);
+        assert_eq!(local_path(&paths, "pult:", "folder/root/EMBER/../../a.md"), None);
+        assert_eq!(local_path(&paths, "pult:", "folder/root/EMBER"), None);
+        assert_eq!(local_path(&paths, "pult:", "folder/abs/EMBER/a.md"), None);
+        assert_eq!(folder_key(&paths, &paths.root), None);
+    }
+
     fn temp_paths(tag: &str) -> Paths {
         let base = std::env::temp_dir().join(format!("pult-sync-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
@@ -1843,6 +1994,67 @@ mod tests {
         assert_eq!(response.status().as_u16(), 200, "{place} {file}");
         let body = response.body_mut().with_config().limit(1 << 30).read_to_vec().unwrap();
         zstd::stream::decode_all(&body[..]).unwrap()
+    }
+
+    /// `.pult` between two computers through a real server: `PULT_SYNCD=<path> cargo test live_dot_pult -- --ignored`.
+    #[test]
+    #[ignore]
+    fn live_dot_pult() {
+        let server = std::env::var("PULT_SYNCD").expect("PULT_SYNCD");
+        let paths = temp_paths("live-dotpult");
+        let data = paths.app.join("server-data");
+        let port = 19647 + (std::process::id() % 1000) as u16;
+        let address = format!("http://127.0.0.1:{port}");
+        let run = |args: &[&str]| std::process::Command::new(&server).args(args).env("DATA_DIR", &data).env("LISTEN", format!("127.0.0.1:{port}")).env("MIN_FREE_MB", "1").output().unwrap();
+        let token = |name: &str| String::from_utf8(run(&["pair", name]).stdout).unwrap().lines().find_map(|line| line.strip_prefix("token ").map(str::to_string)).unwrap();
+        let (token1, token2) = (token("Mac"), token("Second"));
+        let mut child = std::process::Command::new(&server).env("DATA_DIR", &data).env("LISTEN", format!("127.0.0.1:{port}")).env("MIN_FREE_MB", "1").env("SERVER_NAME", "test").spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(600));
+        let result = std::panic::catch_unwind(|| {
+            let (_, api) = discover(&address).unwrap();
+            connect_with_token(&paths, &address, &api, "x", &token1).unwrap();
+            let project = paths.root.join("DEMO");
+            fs::create_dir_all(project.join(".pult")).unwrap();
+            fs::write(project.join(".pult/ideas.md"), "- https://example.com/one\n").unwrap();
+            fs::write(paths.app.join("state.json"), json!({"root": paths.root, "projects": [{"path": project}]}).to_string()).unwrap();
+            push(&paths, &Scope::All).unwrap();
+
+            // The second computer: another main folder; the project folder exists there (Pult creates it).
+            let other = Paths {
+                claude: paths.app.parent().unwrap().join("other/.claude"),
+                app: paths.app.parent().unwrap().join("other-app"),
+                root: paths.app.parent().unwrap().join("other/Work"),
+                home: paths.app.parent().unwrap().join("other"),
+            };
+            fs::create_dir_all(&other.app).unwrap();
+            let theirs = other.root.join("DEMO");
+            fs::create_dir_all(theirs.join(".git/info")).unwrap();
+            fs::write(other.app.join("state.json"), json!({"root": other.root, "projects": [{"path": theirs}]}).to_string()).unwrap();
+            connect_with_token(&other, &address, &api, "y", &token2).unwrap();
+            pull(&other).unwrap();
+            assert_eq!(fs::read_to_string(theirs.join(".pult/ideas.md")).unwrap(), "- https://example.com/one\n");
+            assert_eq!(fs::read_to_string(theirs.join(".git/info/exclude")).unwrap(), "/.pult/\n");
+
+            // Edited there, comes back here; a new file too.
+            fs::write(theirs.join(".pult/ideas.md"), "- https://example.com/one\n- https://example.com/two\n").unwrap();
+            fs::write(theirs.join(".pult/more.md"), "x\n").unwrap();
+            push(&other, &Scope::All).unwrap();
+            pull(&paths).unwrap();
+            assert_eq!(fs::read_to_string(project.join(".pult/ideas.md")).unwrap(), "- https://example.com/one\n- https://example.com/two\n");
+            assert_eq!(fs::read_to_string(project.join(".pult/more.md")).unwrap(), "x\n");
+
+            // Edited on both sides since the last sync: neither overwrites the other.
+            fs::write(project.join(".pult/more.md"), "here\n").unwrap();
+            fs::write(theirs.join(".pult/more.md"), "there\n").unwrap();
+            push(&other, &Scope::All).unwrap();
+            assert_eq!(pull(&paths).unwrap().conflicts, 1);
+            assert_eq!(fs::read_to_string(project.join(".pult/more.md")).unwrap(), "here\n");
+        });
+        let _ = child.kill();
+        let _ = child.wait();
+        if let Err(panic) = result {
+            std::panic::resume_unwind(panic);
+        }
     }
 
     /// The whole path on a real server: `PULT_SYNCD=<path to pult-syncd> cargo test live_sync -- --ignored`.

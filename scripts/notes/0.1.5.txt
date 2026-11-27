@@ -1,0 +1,1 @@
+Each project can keep a .pult folder (notes, bookmarks) that travels with its sessions to your other computers and stays out of git.
