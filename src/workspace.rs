@@ -2753,6 +2753,7 @@ impl Workspace {
                     self.code_stuck.insert(id.to_string(), (stuck, manifest));
                 }
                 ["info"] => self.info_open = true,
+                ["ideas", id] => self.open_ideas(id, window, cx),
                 ["resume", id] => {
                     if let Some(project) = self.project(id).cloned() {
                         self.resume(&project, cx);
@@ -3761,6 +3762,124 @@ impl Workspace {
     }
 
     /// The Session section of the right panel.
+    /// The project's ideas file: notes and bookmarks in `.pult/` that travel with the sessions (`sync::DOT_PULT`).
+    fn ideas_path(project: &Project) -> PathBuf {
+        project.path().join(crate::sync::DOT_PULT).join("ideas.md")
+    }
+
+    /// "Ideas" in the right panel: open the project's ideas file for a quick look, or create it.
+    fn render_ideas(&self, project: &Project, cx: &mut Context<Self>) -> AnyElement {
+        let (muted, border) = (cx.theme().muted_foreground, cx.theme().border);
+        let path = Self::ideas_path(project);
+        let exists = path.is_file();
+        let workspace = cx.entity().downgrade();
+        let id = project.id().to_string();
+        let header = h_flex()
+            .py_1p5()
+            .px_2()
+            .gap_1()
+            .border_b_1()
+            .border_color(border)
+            .font_medium()
+            .child(Icon::new(AssetIcon::Lightbulb).xsmall())
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap_1p5()
+                    .child(t("workspace.ideas"))
+                    .child(
+                        div()
+                            .min_w_0()
+                            .truncate()
+                            .font_normal()
+                            .font_family(cx.theme().mono_font_family.clone())
+                            .text_xs()
+                            .text_color(muted)
+                            .child(".pult/ideas.md"),
+                    ),
+            );
+        let open = move |_: &gpui_kit::ClickEvent, window: &mut Window, cx: &mut gpui_kit::App| {
+            let _ = workspace.update(cx, |this, cx| this.open_ideas(&id, window, cx));
+        };
+        let body = v_flex()
+            .p_2()
+            .gap_2()
+            .child(div().text_color(muted).child(if exists { t("workspace.ideas_hint") } else { t("workspace.ideas_none") }))
+            .child(
+                div().child(
+                    Button::new("ideas-open")
+                        .outline()
+                        .small()
+                        .label(if exists { t("workspace.ideas_open") } else { t("workspace.ideas_create") })
+                        .disabled(!project.exists())
+                        .on_click(open),
+                ),
+            );
+        v_flex()
+            .border_1()
+            .border_color(border)
+            .rounded(cx.theme().radius_lg)
+            .text_sm()
+            .child(header)
+            .child(body)
+            .into_any_element()
+    }
+
+    /// Show the ideas file in a sheet, read-only (Markdown through the Kit's `TextView`). A missing file is created
+    /// first with a heading, so "Create" lands in the same view.
+    fn open_ideas(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(project) = self.project(id).cloned() else {
+            return;
+        };
+        let path = Self::ideas_path(&project);
+        if !path.is_file() {
+            let text = tr!("workspace.ideas_template", name = project.name());
+            let created = path.parent().map(std::fs::create_dir_all).unwrap_or(Ok(())).and_then(|()| std::fs::write(&path, text));
+            if let Err(error) = created {
+                window.push_notification(tr!("workspace.ideas_create_failed", error = error), cx);
+                return;
+            }
+            crate::sync::exclude_from_git(project.path());
+            cx.notify();
+        }
+        let text: SharedString = match std::fs::read_to_string(&path) {
+            Ok(text) => text.into(),
+            Err(error) => {
+                window.push_notification(tr!("workspace.ideas_read_failed", error = error), cx);
+                return;
+            }
+        };
+        let title: SharedString = tr!("workspace.ideas_title", name = project.name()).into();
+        window.open_sheet(cx, move |sheet, _, _| {
+            let (reveal, edit) = (path.clone(), path.clone());
+            sheet
+                .title(title.clone())
+                .size(px(560.))
+                .child(
+                    div().px_1().child(
+                        gpui_kit::component::text::TextView::markdown("ideas-view", text.clone()).selectable(true),
+                    ),
+                )
+                .footer(
+                    h_flex()
+                        .gap_2()
+                        .child(
+                            Button::new("ideas-reveal")
+                                .ghost()
+                                .label(t("common.show_in_finder"))
+                                .on_click(move |_, _, cx| cx.reveal_path(&reveal)),
+                        )
+                        .child(
+                            Button::new("ideas-edit")
+                                .outline()
+                                .label(t("workspace.ideas_edit"))
+                                .on_click(move |_, _, cx| cx.open_with_system(&edit)),
+                        ),
+                )
+        });
+    }
+
     fn render_session(&self, project: &Project, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme();
         let (muted, border) = (theme.muted_foreground, theme.border);
@@ -4375,6 +4494,7 @@ impl Workspace {
                             .p_3()
                             .gap_3()
                             .child(self.render_session(&project, cx))
+                            .child(self.render_ideas(&project, cx))
                             .child(accordion),
                     ),
             )

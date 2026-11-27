@@ -1,0 +1,1 @@
+New Ideas block in the right panel: a quick read-only look at the project's .pult/ideas.md, or create it.

@@ -77,7 +77,7 @@ use gpui_kit::component::{
 };
 // Icons beyond GPUI Kit's standard set (sections of the "Connected to Claude" panel).
 gpui_kit::assets::icon_assets!(ExtraIcons, [
-    Puzzle, Sparkles, ScrollText, FolderPlus, MessageSquare, Settings, Folder, SlidersHorizontal, Check, Circle, Minus, RefreshCw, Server, TriangleAlert, Download, Laptop
+    Puzzle, Sparkles, ScrollText, FolderPlus, MessageSquare, Settings, Folder, SlidersHorizontal, Check, Circle, Minus, RefreshCw, Server, TriangleAlert, Download, Laptop, Lightbulb
 ]);
 
 /// Standard component icons plus ours.

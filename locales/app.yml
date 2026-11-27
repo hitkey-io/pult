@@ -1208,6 +1208,36 @@ workspace:
   pause_name:
     en: "Pause “%{name}”"
     ru: "Пауза «%{name}»"
+  ideas:
+    en: "Ideas"
+    ru: "Идеи"
+  ideas_hint:
+    en: "Notes and bookmarks for this project. They go to your other computers with the sessions."
+    ru: "Заметки и закладки проекта. Едут на другие компьютеры вместе с сессиями."
+  ideas_none:
+    en: "No ideas file yet. Keep notes and bookmarks here: they go to your other computers with the sessions."
+    ru: "Файла идей ещё нет. Храните здесь заметки и закладки: они едут на другие компьютеры вместе с сессиями."
+  ideas_open:
+    en: "Open"
+    ru: "Открыть"
+  ideas_create:
+    en: "Create"
+    ru: "Создать"
+  ideas_edit:
+    en: "Edit in Editor"
+    ru: "Править в редакторе"
+  ideas_title:
+    en: "Ideas · %{name}"
+    ru: "Идеи · %{name}"
+  ideas_template:
+    en: "# Ideas · %{name}\n\nOne line per link: the link and why it matters.\n"
+    ru: "# Идеи · %{name}\n\nОдна строка — ссылка и зачем она.\n"
+  ideas_create_failed:
+    en: "Couldn’t create the ideas file: %{error}"
+    ru: "Не удалось создать файл идей: %{error}"
+  ideas_read_failed:
+    en: "Couldn’t read the ideas file: %{error}"
+    ru: "Не удалось прочитать файл идей: %{error}"
   restart_name_cmd:
     en: "Restart “%{name}”"
     ru: "Перезапустить «%{name}»"
