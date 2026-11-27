@@ -1,9 +1,9 @@
 {
-  "version": "0.1.5",
-  "sha256": "4675a78c0cac23c92a886b359fa73891864f279ad9c84ff3a4e8bd5790861244",
-  "size": 15796176,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.5/Pult-0.1.5.dmg",
+  "version": "0.1.6",
+  "sha256": "e13b73fec0edd80d9d5d55799d2915651c25154e4f8ceb724d9dd4f233f2997f",
+  "size": 15800963,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.6/Pult-0.1.6.dmg",
   "notes": [
-    "Each project can keep a .pult folder (notes, bookmarks) that travels with its sessions to your other computers and stays out of git."
+    "New Ideas block in the right panel: a quick read-only look at the project's .pult/ideas.md, or create it."
   ]
 }
