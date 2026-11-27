@@ -1,9 +1,10 @@
 {
-  "version": "0.1.3",
-  "sha256": "aafb02628abda204d2e9d1d36f7e837b9e6fa702b1bd13a7217ae1d832d8effd",
-  "size": 15777764,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.3/Pult-0.1.3.dmg",
+  "version": "0.1.4",
+  "sha256": "4738cd857cf0dba29143449296dbbf85920373fe56e6e32405f324c439272023",
+  "size": 15790752,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.4/Pult-0.1.4.dmg",
   "notes": [
-    "The state of the open project (working, waiting, ready) now comes from Claude Code itself, so it changes at once."
+    "Option with a letter now works as Meta in the terminal, so Claude Code shortcuts such as Option+P (choose the model) work.",
+    "New \"Restart Session\" command in the project menu, the File menu and the command palette."
   ]
 }
