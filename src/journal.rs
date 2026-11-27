@@ -474,7 +474,7 @@ pub fn cli(args: &[String]) -> i32 {
         Some("install-hooks") => {
             let paths = crate::sync::Paths::real();
             let exe = crate::sync::hook_exe();
-            if !supports_journal(&exe) {
+            if !supports_commands(&exe) {
                 eprintln!("{} is too old for the journal hooks", exe.display());
                 return 1;
             }
@@ -587,7 +587,7 @@ pub fn uninstall_hooks(paths: &crate::sync::Paths) -> Result<bool, String> {
 /// Whether the Pult at `exe` knows `pult journal hook`: this very program, or an installed app that is new enough.
 /// A Pult without the command opens a window when a hook calls it, so the hooks must never point at one. The app
 /// is not run to find out (that is the very thing to avoid): its version is read from `Info.plist`.
-fn supports_journal(exe: &Path) -> bool {
+pub(crate) fn supports_commands(exe: &Path) -> bool {
     if std::env::current_exe().is_ok_and(|current| current == exe) {
         return true;
     }
@@ -608,7 +608,7 @@ fn supports_journal(exe: &Path) -> bool {
 /// would call can handle them; otherwise the next launch (after an update) does it.
 pub fn ensure_hooks() {
     let exe = crate::sync::hook_exe();
-    if supports_journal(&exe) {
+    if supports_commands(&exe) {
         let _ = install_hooks(&crate::sync::Paths::real(), &exe);
     }
 }
@@ -847,9 +847,9 @@ mod tests {
         let exe = app.join("MacOS/pult");
         let plist = |version: &str| format!("<dict><key>CFBundleShortVersionString</key>\n<string>{version}</string></dict>");
         fs::write(app.join("Info.plist"), plist("0.0.9")).unwrap();
-        assert!(!supports_journal(&exe));
+        assert!(!supports_commands(&exe));
         fs::write(app.join("Info.plist"), plist(env!("CARGO_PKG_VERSION"))).unwrap();
-        assert!(supports_journal(&exe));
-        assert!(!supports_journal(&dir.join("nowhere/MacOS/pult")));
+        assert!(supports_commands(&exe));
+        assert!(!supports_commands(&dir.join("nowhere/MacOS/pult")));
     }
 }

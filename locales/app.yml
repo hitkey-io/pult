@@ -1816,3 +1816,22 @@ models:
   cmd_settings:
     en: "Models: settings…"
     ru: "Модели: настройки…"
+ideas:
+  context:
+    en: "This project has an ideas and bookmarks file kept by Pult: %{path} (links: %{links}; sections: %{sections}). When the user talks about ideas, bookmarks, links to look at or similar tools, read it with the mcp__pult__ideas_read tool (the whole file, a section, or a word); without that tool, read the file at that path."
+    ru: "У проекта есть файл идей и закладок, его ведёт Пульт: %{path} (ссылок: %{links}; разделы: %{sections}). Когда пользователь говорит об идеях, закладках, ссылках, которые стоит посмотреть, или о похожих инструментах, — читай его инструментом mcp__pult__ideas_read (весь файл, раздел или по слову); если инструмента нет — прочитай файл по этому пути."
+  no_file:
+    en: "There is no ideas file (.pult/ideas.md) for %{dir}. Pult creates one from the Ideas block in the project's right panel."
+    ru: "Файла идей (.pult/ideas.md) для %{dir} нет. Пульт создаёт его в блоке «Идеи» правой панели проекта."
+  unreadable:
+    en: "Couldn’t read %{path}."
+    ru: "Не удалось прочитать %{path}."
+  no_section:
+    en: "No section “%{section}”. Sections: %{sections}"
+    ru: "Раздела «%{section}» нет. Разделы: %{sections}"
+  nothing_found:
+    en: "Nothing mentions “%{query}”."
+    ru: "Ничего не упоминает «%{query}»."
+  unknown_tool:
+    en: "Unknown tool."
+    ru: "Неизвестный инструмент."

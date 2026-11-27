@@ -1,0 +1,1 @@
+Claude Code sessions now know about the project's ideas file, also after resume and compaction, and read it through Pult's own MCP server (ideas_outline, ideas_read).

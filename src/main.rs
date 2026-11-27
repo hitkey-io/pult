@@ -4,6 +4,7 @@ rust_i18n::i18n!("locales", fallback = "en");
 #[macro_use]
 mod i18n;
 mod claude;
+mod ideas;
 mod code;
 mod dialogs;
 mod journal;
@@ -225,6 +226,14 @@ fn main() {
     if args.get(1).map(String::as_str) == Some("journal") {
         std::process::exit(journal::cli(&args[2..]));
     }
+    // `pult ideas hook` — Claude Code hooks; `pult mcp` — the MCP server sessions read the ideas file through.
+    if args.get(1).map(String::as_str) == Some("ideas") {
+        std::process::exit(ideas::cli(&args[2..]));
+    }
+    if args.get(1).map(String::as_str) == Some("mcp") {
+        ideas::serve();
+        std::process::exit(0);
+    }
     if args.get(1).map(String::as_str) == Some("code") {
         std::process::exit(code::cli(&args[2..]));
     }
@@ -237,6 +246,8 @@ fn main() {
     // Claude Code deletes transcripts older than 30 days on its own — Pult turns that off (`sync::KEEP_DAYS`).
     let _ = sync::keep_transcripts(&sync::Paths::real());
     sync::start_periodic();
+    // Every session learns about the project's ideas file and can read it (hook + MCP server).
+    std::thread::spawn(ideas::ensure);
     let app = gpui_kit::application().with_assets(AppAssets);
     // The main window was closed (⌘W, red button) but Pult keeps running — clicking the Dock icon
     // opens it again; background Claude sessions live on their own all this time.
