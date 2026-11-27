@@ -52,6 +52,9 @@ common:
   change_session:
     en: "Change session…"
     ru: "Сменить сессию…"
+  restart_session:
+    en: "Restart Session"
+    ru: "Перезапустить сессию"
   copy_path:
     en: "Copy path"
     ru: "Скопировать путь"
@@ -1122,6 +1125,12 @@ workspace:
   name_is_paused_conversation_is:
     en: "“%{name}” is paused. The conversation is saved."
     ru: "«%{name}» на паузе. Переписка сохранена."
+  restart_name:
+    en: "Restart “%{name}”?"
+    ru: "Перезапустить «%{name}»?"
+  name_restarted:
+    en: "“%{name}” restarted, the conversation goes on."
+    ru: "«%{name}» перезапущена, переписка продолжается."
   restart_name_without_prompts:
     en: "Restart “%{name}” without prompts?"
     ru: "Перезапустить «%{name}» без вопросов?"
@@ -1199,6 +1208,9 @@ workspace:
   pause_name:
     en: "Pause “%{name}”"
     ru: "Пауза «%{name}»"
+  restart_name_cmd:
+    en: "Restart “%{name}”"
+    ru: "Перезапустить «%{name}»"
   rename_name:
     en: "Rename “%{name}”…"
     ru: "Переименовать «%{name}»…"

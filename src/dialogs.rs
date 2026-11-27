@@ -30,6 +30,7 @@ pub enum PaletteAction {
     NewProject,
     AddFolders,
     TogglePause,
+    RestartSession,
     PauseOthers,
     Settings,
     RenameProject,
@@ -49,6 +50,8 @@ pub enum PaletteAction {
 pub struct CurrentCommands {
     /// "Pause “X”" or "Continue “X”".
     pub pause: Option<String>,
+    /// "Restart “X”" when the session can be restarted.
+    pub restart: Option<String>,
     /// "Rename “X”…".
     pub rename: Option<String>,
     /// "Split “X” into subprojects…" for an ordinary project, "New subproject in “X”…" for a subproject.
@@ -116,6 +119,9 @@ pub fn open_palette(
     }
     if !pause_label.is_empty() {
         commands.push((pause_label, "⇧⌘P", PaletteAction::TogglePause));
+    }
+    if let Some(label) = current.restart {
+        commands.push((&*label.leak(), "", PaletteAction::RestartSession));
     }
     commands.push((t("common.pause_all_except_current"), "", PaletteAction::PauseOthers));
     commands.extend([

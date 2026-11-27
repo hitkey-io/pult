@@ -33,7 +33,7 @@ use gpui_kit::{
 
 use crate::actions::{
     AddFolders, ClearTerminal, CloneSubproject, CopyPath, GoBack, GoForward, NewProject, NewSubproject, OpenModels, OpenPalette, OpenSettings, PauseOthers,
-    RemoveProject, RenameProject, RevealInFinder, SplitProject, SwitchSession, ToggleInfo, TogglePause, ToggleSidebar, ToggleTheme, UseClaude, UseGlm, ZoomIn,
+    RemoveProject, RenameProject, RestartSession, RevealInFinder, SplitProject, SwitchSession, ToggleInfo, TogglePause, ToggleSidebar, ToggleTheme, UseClaude, UseGlm, ZoomIn,
     ZoomOut, ZoomReset,
 };
 use gpui_kit::assets::IconName as AssetIcon;
@@ -1830,6 +1830,90 @@ impl Workspace {
         cx.notify();
     }
 
+    /// Whether the project's session can be restarted: a background session that runs or idles here, and nothing
+    /// else is being done to it (starting, handing over, moving to another computer).
+    fn can_restart(&self, project: &Project) -> bool {
+        if self.elsewhere(project).is_some() || self.is_paused(project) {
+            return false;
+        }
+        if self.starting.contains(project.id()) || self.handoff.contains_key(project.id()) {
+            return false;
+        }
+        project
+            .session()
+            .and_then(|session| self.agent(session))
+            .is_some_and(|agent| agent.is_background() && agent.id.is_some() && agent.activity() != Activity::Stopped)
+    }
+
+    fn restart_current(&mut self, _: &RestartSession, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(id) = self.selected.clone() {
+            self.restart_session(&id, false, window, cx);
+        }
+    }
+
+    /// Restart the project's session: `claude stop`, wait for the process, `claude respawn` — the same id, name,
+    /// flags and worktree; the conversation goes on. A turn that runs or waits for a decision is cut off, so it
+    /// asks first.
+    fn restart_session(&mut self, id: &str, confirmed: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(project) = self.project(id).cloned() else {
+            return;
+        };
+        if !self.can_restart(&project) {
+            return;
+        }
+        let Some(agent) = project.session().and_then(|session| self.agent(session)).cloned() else {
+            return;
+        };
+        let Some(short) = agent.id.clone() else {
+            return;
+        };
+        if matches!(agent.activity(), Activity::Working | Activity::Waiting) && !confirmed {
+            let workspace = cx.entity().downgrade();
+            let id = id.to_string();
+            let title = tr!("workspace.restart_name", name = project.name());
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let (workspace, id) = (workspace.clone(), id.clone());
+                alert
+                    .title(SharedString::from(title.clone()))
+                    .description(t("workspace.claude_is_working_right_now_2"))
+                    .show_cancel(true)
+                    .cancel_text(t("common.cancel"))
+                    .ok_text(t("workspace.restart"))
+                    .ok_variant(ButtonVariant::Danger)
+                    .on_ok(move |_, window, cx| {
+                        let _ = workspace.update(cx, |this, cx| this.restart_session(&id, true, window, cx));
+                        true
+                    })
+            });
+            return;
+        }
+        if !self.starting.insert(id.to_string()) {
+            return;
+        }
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
+        self.errors.remove(id);
+        let (id, pid, name) = (id.to_string(), agent.pid, project.name().to_string());
+        cx.spawn_in(window, async move |this, cx| {
+            let result = cx.background_spawn(async move { sessions::restart(&short, pid) }).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                let id = this.live_key(&id);
+                this.starting.remove(&id);
+                match result {
+                    Ok(()) => window.push_notification(tr!("workspace.name_restarted", name = name), cx),
+                    Err(StartError::NotTrusted) => window.push_notification(t("workspace.claude_code_doesn_t_trust"), cx),
+                    Err(StartError::Failed(message)) => {
+                        this.errors.insert(id.clone(), (Failure::Resume, message));
+                    }
+                }
+                this.sync_terminal(cx);
+                this.refresh(cx);
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
     /// Restart the project's session without permission prompts (a working one — after confirmation).
     fn skip_permissions(&mut self, id: &str, confirmed: bool, window: &mut Window, cx: &mut Context<Self>) {
         let Some(project) = self.project(id).cloned() else {
@@ -2305,6 +2389,10 @@ impl Workspace {
                 None
             }
         });
+        let restart = self
+            .current()
+            .filter(|project| self.can_restart(project))
+            .map(|project| tr!("workspace.restart_name_cmd", name = project.name()));
         let clone = self
             .current()
             .filter(|project| self.can_clone(project))
@@ -2312,7 +2400,7 @@ impl Workspace {
         dialogs::open_palette(
             cx.entity().downgrade(),
             projects,
-            dialogs::CurrentCommands { pause, rename, subproject, clone, provider: self.provider },
+            dialogs::CurrentCommands { pause, restart, rename, subproject, clone, provider: self.provider },
             self.sidebar_open,
             self.info_open,
             window,
@@ -2327,6 +2415,7 @@ impl Workspace {
             PaletteAction::NewProject => self.new_project(&NewProject, window, cx),
             PaletteAction::AddFolders => self.add_folders(&AddFolders, window, cx),
             PaletteAction::TogglePause => self.toggle_pause(&TogglePause, window, cx),
+            PaletteAction::RestartSession => self.restart_current(&RestartSession, window, cx),
             PaletteAction::PauseOthers => self.pause_others(&PauseOthers, window, cx),
             PaletteAction::ToggleSidebar => self.toggle_sidebar(&ToggleSidebar, window, cx),
             PaletteAction::ToggleInfo => self.toggle_info(&ToggleInfo, window, cx),
@@ -2833,6 +2922,7 @@ impl Workspace {
         let can_split = current.is_some_and(|project| project.sub().is_none() && project.exists() && project.session().is_some());
         let (pause_label, can_pause) = current.map(|project| self.pause_command(project)).unwrap_or((t("workspace.pause"), false));
         let can_switch = current.is_some_and(Project::exists);
+        let can_restart = current.is_some_and(|project| self.can_restart(project));
         let switch_label = if current.and_then(Project::session).is_some() {
             t("common.change_session")
         } else {
@@ -2896,6 +2986,7 @@ impl Workspace {
                                     .menu(t("common.connected_to_claude"), Box::new(ToggleInfo))
                                     .separator()
                                     .menu_with_disabled(pause_label, Box::new(TogglePause), !can_pause)
+                                    .menu_with_disabled(t("common.restart_session"), Box::new(RestartSession), !can_restart)
                                     .menu_with_disabled(switch_label, Box::new(SwitchSession), !can_switch)
                                     .menu(t("common.clear_terminal_screen"), Box::new(ClearTerminal))
                                     .menu_with_disabled(t("common.rename_project"), Box::new(RenameProject), !can_switch)
@@ -3082,6 +3173,7 @@ impl Workspace {
                 // a context menu on the object; the same commands are in …, File and ⌘K).
                 let (workspace, id) = (workspace.clone(), id.clone());
                 let (pause, can_pause) = self.pause_command(project);
+                let can_restart = self.can_restart(project);
                 let switch = if project.session().is_some() { t("common.change_session") } else { t("workspace.choose_session") };
                 move |menu, window, cx| {
                     let (workspace, id) = (workspace.clone(), id.clone());
@@ -3089,6 +3181,7 @@ impl Workspace {
                         let _ = workspace.update(cx, |this, cx| this.select(&id, window, cx));
                     });
                     menu.menu_with_disabled(pause, Box::new(TogglePause), !can_pause)
+                        .menu_with_disabled(t("common.restart_session"), Box::new(RestartSession), !can_restart)
                         .menu_with_disabled(switch, Box::new(SwitchSession), missing)
                         .separator()
                         .menu(t("common.copy_path"), Box::new(CopyPath))
@@ -4526,6 +4619,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::new_project))
             .on_action(cx.listener(Self::add_folders))
             .on_action(cx.listener(Self::toggle_pause))
+            .on_action(cx.listener(Self::restart_current))
             .on_action(cx.listener(Self::pause_others))
             .on_action(cx.listener(Self::switch_session))
             .on_action(cx.listener(Self::open_palette))

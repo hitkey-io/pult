@@ -1,0 +1,2 @@
+Option with a letter now works as Meta in the terminal, so Claude Code shortcuts such as Option+P (choose the model) work.
+New "Restart Session" command in the project menu, the File menu and the command palette.

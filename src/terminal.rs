@@ -1058,6 +1058,14 @@ fn key_bytes(event: &KeyDownEvent, mode: TermMode) -> Option<Vec<u8>> {
                 _ => return None,
             }
         }
+        // Option + a Latin letter or digit is Meta, as iTerm2's "Option key: Esc+": ESC and the key. Claude Code's
+        // own shortcuts are Meta ones (Option+P — model, Option+T — thinking, Option+B/F — by word); without this
+        // macOS gives "π", "†"… Other keys with Option (dashes, quotes, other layouts) still type their character.
+        key if modifiers.alt && !modifiers.platform && key.len() == 1 && key.as_bytes()[0].is_ascii_alphanumeric() => {
+            let character = key.as_bytes()[0];
+            let character = if modifiers.shift { character.to_ascii_uppercase() } else { character.to_ascii_lowercase() };
+            vec![0x1b, character]
+        }
         _ => {
             let text = keystroke.key_char.as_ref()?;
             if text.chars().any(char::is_control) {
@@ -1572,6 +1580,23 @@ pub fn placeholder_steps(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn key(source: &'static str, typed: &str) -> KeyDownEvent {
+        let mut keystroke = gpui_kit::Keystroke::parse(source).unwrap();
+        keystroke.key_char = Some(typed.to_string());
+        KeyDownEvent { keystroke, is_held: false, prefer_character_input: false }
+    }
+
+    #[test]
+    fn option_with_a_letter_is_meta_as_claude_code_expects() {
+        // macOS types "π" for Option+P; Claude Code's model picker waits for ESC p.
+        assert_eq!(key_bytes(&key("alt-p", "π"), TermMode::empty()), Some(b"\x1bp".to_vec()));
+        assert_eq!(key_bytes(&key("alt-shift-p", "∏"), TermMode::empty()), Some(b"\x1bP".to_vec()));
+        assert_eq!(key_bytes(&key("alt-t", "†"), TermMode::empty()), Some(b"\x1bt".to_vec()));
+        // Option with punctuation still types the character (an en dash here), plain letters are untouched.
+        assert_eq!(key_bytes(&key("alt--", "–"), TermMode::empty()), Some("–".as_bytes().to_vec()));
+        assert_eq!(key_bytes(&key("p", "p"), TermMode::empty()), Some(b"p".to_vec()));
+    }
 
     #[test]
     fn dropped_paths_are_escaped_like_iterm2() {
