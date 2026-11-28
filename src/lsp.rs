@@ -199,20 +199,37 @@ fn on_path(language: &Language) -> Option<PathBuf> {
     executable(&path).then_some(path)
 }
 
-/// The plugins enabled for every project (`claude plugin list --json`, user scope).
-pub fn enabled_plugins() -> Vec<String> {
-    let Ok(output) = sessions::claude(&home(), &["plugin", "list", "--json"]).output() else {
-        return Vec::new();
-    };
-    let Ok(value) = serde_json::from_slice::<Value>(&output.stdout) else {
+/// One plugin from `claude plugin list --json`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Plugin {
+    pub id: String,
+    pub enabled: bool,
+}
+
+/// The plugins installed for every project: user scope, where Pult installs. A project's own entries are not ours.
+fn plugins_from(list_json: &[u8]) -> Vec<Plugin> {
+    let Ok(value) = serde_json::from_slice::<Value>(list_json) else {
         return Vec::new();
     };
     let list = value.as_array().cloned().or_else(|| value.get("plugins").and_then(Value::as_array).cloned()).unwrap_or_default();
     list.iter()
-        .filter(|plugin| plugin.get("enabled").and_then(Value::as_bool) == Some(true))
         .filter(|plugin| plugin.get("scope").and_then(Value::as_str).is_none_or(|scope| scope == "user"))
-        .filter_map(|plugin| plugin.get("id").or_else(|| plugin.get("name")).and_then(Value::as_str).map(String::from))
+        .filter_map(|plugin| {
+            let id = plugin.get("id").or_else(|| plugin.get("name")).and_then(Value::as_str)?;
+            Some(Plugin { id: id.into(), enabled: plugin.get("enabled").and_then(Value::as_bool) == Some(true) })
+        })
         .collect()
+}
+
+fn plugins() -> Vec<Plugin> {
+    let Ok(output) = sessions::claude(&home(), &["plugin", "list", "--json"]).output() else {
+        return Vec::new();
+    };
+    plugins_from(&output.stdout)
+}
+
+fn enabled_plugins() -> Vec<String> {
+    plugins().into_iter().filter(|plugin| plugin.enabled).map(|plugin| plugin.id).collect()
 }
 
 /// The status of every language (slow: starts shells and `claude`; not on the window's thread).
@@ -295,16 +312,36 @@ fn claude(args: &[&str]) -> Result<(), Failure> {
     if output.status.success() { Ok(()) } else { Err(Failure::Plugin(last_line(&output.stderr, &output.stdout))) }
 }
 
+/// What the plugin step has to do.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Action {
+    Nothing,
+    Enable,
+    Install,
+}
+
+fn action(listed: &[Plugin], id: &str) -> Action {
+    match listed.iter().find(|plugin| plugin.id == id) {
+        Some(plugin) if plugin.enabled => Action::Nothing,
+        Some(_) => Action::Enable,
+        None => Action::Install,
+    }
+}
+
 fn enable_plugin(language: &Language) -> Result<(), Failure> {
     let id = plugin_id(language);
-    if enabled_plugins().contains(&id) {
-        return Ok(());
-    }
-    // Installed but turned off: enabling is enough. Otherwise install (it enables).
-    if claude(&["plugin", "enable", &id, "--scope", "user"]).is_err() {
-        claude(&["plugin", "install", &id, "--scope", "user", "--yes"])?;
-    }
-    if enabled_plugins().contains(&id) { Ok(()) } else { Err(Failure::Plugin(String::new())) }
+    // The list decides, not `enable`'s word: for a plugin that isn't installed it answers "Successfully enabled",
+    // exits with 0 and only writes the setting — the plugin itself is still missing (found with pyright-lsp).
+    let act = match action(&plugins(), &id) {
+        Action::Nothing => return Ok(()),
+        act => act,
+    };
+    let result = match act {
+        Action::Enable => claude(&["plugin", "enable", &id, "--scope", "user"]),
+        _ => claude(&["plugin", "install", &id, "--scope", "user", "--yes"]),
+    };
+    result?;
+    if action(&plugins(), &id) == Action::Nothing { Ok(()) } else { Err(Failure::Plugin(String::new())) }
 }
 
 pub fn rule_text(language: &Language) -> String {
@@ -371,6 +408,29 @@ mod tests {
         let text = rule_text(language("go").unwrap());
         assert!(text.starts_with("---\npaths:\n  - \"**/*.go\"\n  - \"**/go.mod\"\n---\n"));
         assert!(text.contains("`gopls`") && text.contains("`gopls-lsp`") && text.contains("findReferences"));
+    }
+
+    #[test]
+    fn a_plugin_that_is_not_installed_is_installed_and_one_that_is_off_is_enabled() {
+        let on = |id: &str| Plugin { id: id.into(), enabled: true };
+        let off = |id: &str| Plugin { id: id.into(), enabled: false };
+        let id = "pyright-lsp@claude-plugins-official";
+        assert_eq!(action(&[], id), Action::Install);
+        assert_eq!(action(&[on("gopls-lsp@claude-plugins-official")], id), Action::Install);
+        assert_eq!(action(&[off(id)], id), Action::Enable);
+        assert_eq!(action(&[off("gopls-lsp@claude-plugins-official"), on(id)], id), Action::Nothing);
+    }
+
+    #[test]
+    fn the_plugin_list_keeps_the_user_scope_with_its_switch() {
+        let list = serde_json::json!([
+            {"id": "pyright-lsp@claude-plugins-official", "enabled": true, "scope": "user", "version": "1.0.0"},
+            {"id": "swift-lsp@x", "enabled": true, "scope": "project"},
+            {"name": "no-scope@y", "enabled": false}
+        ]);
+        let kept = plugins_from(list.to_string().as_bytes());
+        assert_eq!(kept, [Plugin { id: "pyright-lsp@claude-plugins-official".into(), enabled: true }, Plugin { id: "no-scope@y".into(), enabled: false }]);
+        assert!(plugins_from(b"not json").is_empty());
     }
 
     /// Installs for real on this computer: `PULT_LSP=go,rust cargo test live_install -- --ignored`.

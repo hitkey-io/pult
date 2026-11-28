@@ -1,0 +1,1 @@
+Settings → Languages: the Claude Code plugin is now installed when it is missing. For a language whose plugin was not installed yet, “Install” used to stop with “didn’t turn on”.
