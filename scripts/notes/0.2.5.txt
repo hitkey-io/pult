@@ -1,0 +1,1 @@
+Settings → Languages: the automatic session restart after installing or removing a language no longer fails with “Couldn’t start the session” or leaves a stray copy of the session behind.

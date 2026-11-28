@@ -2041,7 +2041,10 @@ impl Workspace {
         }
     }
 
-    /// `restart_session` without the question and the notification: the caller has told the person already.
+    /// `restart_session` without the question and the full-window error: the person didn't ask for this restart,
+    /// so a failure is a notification, not a placeholder that invites a copy-making retry. Only a session with a
+    /// live process is touched, and the project stays guarded (`starting`) until `claude agents` shows it back,
+    /// so the open-project auto-resume can't slip a `--resume --bg` copy in between.
     fn restart_quietly(&mut self, id: &str, cx: &mut Context<Self>) {
         let Some(project) = self.project(id).cloned() else {
             return;
@@ -2049,9 +2052,12 @@ impl Workspace {
         let Some(agent) = project.session().and_then(|session| self.agent(session)).cloned() else {
             return;
         };
-        let Some(short) = agent.id.clone() else {
+        let (Some(short), Some(session)) = (agent.id.clone(), project.session().map(str::to_string)) else {
             return;
         };
+        if !agent.is_running() {
+            return;
+        }
         if !self.starting.insert(id.to_string()) {
             return;
         }
@@ -2059,13 +2065,13 @@ impl Workspace {
         self.errors.remove(id);
         let (id, pid) = (id.to_string(), agent.pid);
         cx.spawn(async move |this, cx| {
-            let result = cx.background_spawn(async move { sessions::restart(&short, pid) }).await;
+            // `restart_confirmed` waits until the session is listed running again, so clearing `starting` here
+            // can't race the open-project auto-resume. A respawn that truly failed leaves the session stopped —
+            // the project then shows the normal "paused, Continue" placeholder, not a full-window error.
+            let _ = cx.background_spawn(async move { sessions::restart_confirmed(&short, &session, pid) }).await;
             let _ = this.update(cx, |this, cx| {
                 let id = this.live_key(&id);
                 this.starting.remove(&id);
-                if let Err(StartError::Failed(message)) = result {
-                    this.errors.insert(id.clone(), (Failure::Resume, message));
-                }
                 this.sync_terminal(cx);
                 this.refresh(cx);
                 cx.notify();

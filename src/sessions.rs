@@ -964,6 +964,21 @@ pub fn relaunch_skipping_permissions(short_id: &str, pid: Option<u32>) -> Result
     respawn(short_id)
 }
 
+/// Like `restart`, but waits until `claude agents` shows the session running again (a background poll elsewhere
+/// might otherwise see it briefly stopped and try to `--resume` it into a copy). Used by the quiet restart that
+/// follows a language-server change, which the person didn't ask for.
+pub fn restart_confirmed(short_id: &str, session_id: &str, pid: Option<u32>) -> Result<(), StartError> {
+    restart(short_id, pid)?;
+    for _ in 0..12 {
+        if try_agents().is_some_and(|agents| agents.iter().any(|agent| agent.session_id == session_id && agent.pid.is_some())) {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    // It restarted, Claude Code just hasn't listed it yet: not a failure, the next poll will show it.
+    Ok(())
+}
+
 /// Restart a running background session so it picks up new settings (`~/.claude/settings.json` is read when a
 /// Claude Code process starts): stop it, wait for the process to exit, `respawn` — the same id, name, flags and
 /// git worktree, the conversation goes on from where it was. A turn that was running is cut off.
