@@ -1,9 +1,9 @@
 {
-  "version": "0.2.4",
-  "sha256": "72f3de5fc5cae18f8de4b5672626975717eafe7c3149de9a7b8df5c6a09b3bb6",
-  "size": 15956220,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.4/Pult-0.2.4.dmg",
+  "version": "0.2.5",
+  "sha256": "705984c7fbba51cb45dce6f644cf30f180cbb29a055d55ad243fe1f75d0cada9",
+  "size": 15962038,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.5/Pult-0.2.5.dmg",
   "notes": [
-    "Settings → Languages: after “Install” or “Remove…” the running sessions of your projects restart on their own so they pick the change up at once — idle ones right away, busy ones as soon as their turn ends. The conversation goes on."
+    "Settings → Languages: the automatic session restart after installing or removing a language no longer fails with “Couldn’t start the session” or leaves a stray copy of the session behind."
   ]
 }
