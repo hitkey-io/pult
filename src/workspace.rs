@@ -1740,7 +1740,7 @@ impl Workspace {
             return;
         }
         self.errors.remove(&id);
-        let flag = match self.models_flag(&project) {
+        let flag = match self.models_flag(project) {
             Ok(flag) => flag,
             Err(message) => {
                 self.starting.remove(&id);
