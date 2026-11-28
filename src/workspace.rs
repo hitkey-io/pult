@@ -400,6 +400,8 @@ impl Workspace {
         .detach();
         // The key the `@z_ai/coding-helper` utility saved is taken once, at launch: the GLM choice works at once.
         crate::models::adopt_helper_key(&crate::sync::Paths::real());
+        // Before 0.2.0 GLM was switched on for everything in `~/.claude/settings.json`: now it is per project.
+        crate::models::migrate_global(&crate::sync::Paths::real());
         this.refresh_models();
         this
     }
@@ -1054,14 +1056,25 @@ impl Workspace {
     /// Reread who Claude Code talks to and what is saved for GLM (a few small files).
     pub(crate) fn refresh_models(&mut self) {
         let paths = crate::sync::Paths::real();
-        self.provider = crate::models::current(&paths);
         let config = crate::models::load(&paths);
+        self.provider = if config.default_glm { crate::models::Provider::Glm } else { crate::models::Provider::Claude };
         self.glm_key = config.has_key();
         self.glm_main = config.main;
     }
 
     pub(crate) fn provider(&self) -> crate::models::Provider {
         self.provider
+    }
+
+    /// The models a project's sessions use: its own choice, else Pult's default.
+    pub(crate) fn provider_of(&self, project: &Project) -> crate::models::Provider {
+        project.provider().and_then(crate::models::provider_from_key).unwrap_or(self.provider)
+    }
+
+    /// The `--settings` value a session of this project is started with. Without a GLM key a GLM project can't
+    /// start: the error says where to add it.
+    fn models_flag(&self, project: &Project) -> Result<String, String> {
+        crate::models::session_flag(&crate::sync::Paths::real(), self.provider_of(project)).map_err(|_| t("models.need_key").to_string())
     }
 
     /// Asked for from Settings: the switch runs in the main window at its next frame.
@@ -1082,24 +1095,142 @@ impl Workspace {
         self.open_settings_at(Some(crate::settings::MODELS_PAGE), cx);
     }
 
-    /// Point Claude Code at Claude or at GLM and restart the running sessions (`switch`).
+    /// The chip, the menu and ⌘K: the current project's models.
     pub(crate) fn use_provider(&mut self, to: crate::models::Provider, window: &mut Window, cx: &mut Context<Self>) {
         self.refresh_models();
-        if to == self.provider {
+        if let Some(id) = self.selected.clone() {
+            self.switch_project_provider(&id, to, false, window, cx);
+        }
+    }
+
+    /// Move one project to `to`: its choice is saved (and shared), and its session comes back on the new models —
+    /// a running one at once (a turn in progress asks first), a stopped one when it is continued.
+    fn switch_project_provider(&mut self, id: &str, to: crate::models::Provider, confirmed: bool, window: &mut Window, cx: &mut Context<Self>) {
+        use crate::models::Provider;
+        let Some(project) = self.project(id).cloned() else {
+            return;
+        };
+        if self.provider_of(&project) == to {
             return;
         }
+        if to == Provider::Glm && !self.glm_key {
+            self.open_settings_at(Some(crate::settings::MODELS_PAGE), cx);
+            window.push_notification(t("models.need_key"), cx);
+            return;
+        }
+        let flag = match crate::models::session_flag(&crate::sync::Paths::real(), to) {
+            Ok(flag) => flag,
+            Err(_) => {
+                window.push_notification(t("models.need_key"), cx);
+                return;
+            }
+        };
+        let agent = project.session().and_then(|session| self.agent(session)).cloned();
+        let job = agent.as_ref().filter(|agent| agent.is_background()).and_then(|agent| agent.id.clone());
+        let running = agent.as_ref().is_some_and(|agent| agent.is_background() && agent.is_running()) && !self.is_paused(&project);
+        let working = running && agent.as_ref().is_some_and(|agent| matches!(agent.activity(), Activity::Working | Activity::Waiting));
+        let name = crate::switch::provider_name(to);
+        if working && !confirmed {
+            let workspace = cx.entity().downgrade();
+            let id = id.to_string();
+            let title = tr!("models.project_ask_title", name = project.name(), to = name);
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let (workspace, id) = (workspace.clone(), id.clone());
+                alert
+                    .title(SharedString::from(title.clone()))
+                    .description(t("workspace.claude_is_working_right_now_2"))
+                    .show_cancel(true)
+                    .cancel_text(t("common.cancel"))
+                    .ok_text(t("models.project_switch"))
+                    .ok_variant(ButtonVariant::Danger)
+                    .on_ok(move |_, window, cx| {
+                        let _ = workspace.update(cx, |this, cx| this.switch_project_provider(&id, to, true, window, cx));
+                        true
+                    })
+            });
+            return;
+        }
+        self.store.set_provider(id, crate::models::provider_key(to));
+        self.reload();
+        let title = project.name().to_string();
+        match job {
+            Some(short) if running => {
+                if !self.starting.insert(id.to_string()) {
+                    return;
+                }
+                self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
+                self.errors.remove(id);
+                let (id, pid) = (id.to_string(), agent.and_then(|agent| agent.pid));
+                cx.spawn_in(window, async move |this, cx| {
+                    let result = cx.background_spawn(async move { sessions::switch_settings(&short, pid, &flag) }).await;
+                    let _ = this.update_in(cx, |this, window, cx| {
+                        let id = this.live_key(&id);
+                        this.starting.remove(&id);
+                        match result {
+                            Ok(()) => window.push_notification(tr!("models.project_done", name = title, to = name), cx),
+                            Err(StartError::NotTrusted) => window.push_notification(t("workspace.claude_code_doesn_t_trust"), cx),
+                            Err(StartError::Failed(message)) => {
+                                this.errors.insert(id.clone(), (Failure::Resume, message));
+                            }
+                        }
+                        this.sync_terminal(cx);
+                        this.refresh(cx);
+                        cx.notify();
+                    });
+                })
+                .detach();
+            }
+            Some(short) => {
+                cx.background_spawn(async move { sessions::set_settings_flag(&short, &flag) }).detach();
+                window.push_notification(tr!("models.project_later", name = title, to = name), cx);
+            }
+            None => window.push_notification(tr!("models.project_later", name = title, to = name), cx),
+        }
+        cx.notify();
+    }
+
+    /// Settings → Models: every project moves to `to`, and new projects get it too. Running sessions restart
+    /// (`switch`), stopped ones come back on `to` when they are continued.
+    pub(crate) fn use_provider_everywhere(&mut self, to: crate::models::Provider, window: &mut Window, cx: &mut Context<Self>) {
+        self.refresh_models();
         if to == crate::models::Provider::Glm && !self.glm_key {
             self.open_settings_at(Some(crate::settings::MODELS_PAGE), cx);
             window.push_notification(t("models.need_key"), cx);
             return;
         }
+        let paths = crate::sync::Paths::real();
+        let flag = match crate::switch::prepare(&paths, to) {
+            Ok(flag) => flag,
+            Err(reason) => {
+                window.push_notification(tr!("models.write_failed", reason = reason), cx);
+                return;
+            }
+        };
         let targets = self.model_targets();
-        let quiet = targets.is_empty();
-        crate::switch::start(cx.entity().downgrade(), to, targets, window, cx);
-        if quiet {
-            self.refresh_models();
-            cx.notify();
+        self.models_everywhere(to, &flag, &targets);
+        self.refresh_models();
+        if targets.is_empty() {
+            window.push_notification(tr!("models.done", to = crate::switch::provider_name(to)), cx);
+        } else {
+            crate::switch::start(cx.entity().downgrade(), to, flag, targets, window, cx);
         }
+        cx.notify();
+    }
+
+    /// Every project's choice becomes `to`; the stopped sessions are told to come back on it.
+    fn models_everywhere(&mut self, to: crate::models::Provider, flag: &str, running: &[crate::switch::Target]) {
+        self.store.set_providers(crate::models::provider_key(to), true);
+        for project in &self.projects {
+            let Some(agent) = project.session().and_then(|session| self.agent(session)) else {
+                continue;
+            };
+            if let Some(short) = agent.id.clone().filter(|_| agent.is_background())
+                && !running.iter().any(|target| target.short == short)
+            {
+                sessions::set_settings_flag(&short, flag);
+            }
+        }
+        self.reload();
     }
 
     /// The running background sessions of Pult's projects: what a switch of models restarts.
@@ -1609,12 +1740,21 @@ impl Workspace {
             return;
         }
         self.errors.remove(&id);
+        let flag = match self.models_flag(&project) {
+            Ok(flag) => flag,
+            Err(message) => {
+                self.starting.remove(&id);
+                self.errors.insert(id, (Failure::Resume, message));
+                cx.notify();
+                return;
+            }
+        };
         let cwd = project.path().to_path_buf();
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_spawn({
                     let (cwd, session) = (cwd.clone(), session.clone());
-                    async move { sessions::resume(&cwd, &session) }
+                    async move { sessions::resume(&cwd, &session, &flag) }
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
@@ -1660,6 +1800,13 @@ impl Workspace {
         let Some(project) = self.project(id).cloned() else {
             return;
         };
+        let flag = match self.models_flag(&project) {
+            Ok(flag) => flag,
+            Err(message) => {
+                window.push_notification(message, cx);
+                return;
+            }
+        };
         if !self.starting.insert(id.to_string()) {
             return;
         }
@@ -1673,7 +1820,7 @@ impl Workspace {
             let result = cx
                 .background_spawn({
                     let (cwd, name) = (cwd.clone(), name.clone());
-                    async move { sessions::start_new(&cwd, &name) }
+                    async move { sessions::start_new(&cwd, &name, &flag) }
                 })
                 .await;
             let _ = this.update_in(cx, |this, window, cx| {
@@ -2605,11 +2752,21 @@ impl Workspace {
             }
         };
         self.store.set_about(&id, about);
+        // The copy goes on with the models of the original.
+        let provider = self.provider_of(&original);
+        self.store.set_provider(&id, crate::models::provider_key(provider));
         crate::journal::ensure_hooks();
         self.reload();
         self.select(&id, window, cx);
         let Some(project) = self.project(&id).cloned() else {
             return true;
+        };
+        let flag = match self.models_flag(&project) {
+            Ok(flag) => flag,
+            Err(message) => {
+                window.push_notification(message, cx);
+                return true;
+            }
         };
         self.starting.insert(id.clone());
         let (cwd, session_name) = (project.path().to_path_buf(), project.session_name());
@@ -2618,7 +2775,7 @@ impl Workspace {
             let result = cx
                 .background_spawn({
                     let cwd = cwd.clone();
-                    async move { sessions::clone_session(&cwd, &session, &session_name) }
+                    async move { sessions::clone_session(&cwd, &session, &session_name, &flag) }
                 })
                 .await;
             let _ = this.update_in(cx, |this, window, cx| {
@@ -2930,7 +3087,7 @@ impl Workspace {
             t("workspace.choose_session")
         };
         let is_dark = cx.theme().is_dark();
-        let provider = self.provider;
+        let provider = current.map(|project| self.provider_of(project)).unwrap_or(self.provider);
         let (glm_key, glm_main) = (self.glm_key, self.glm_main.clone());
         let chip_name = crate::switch::provider_name(provider);
         let chip_dot = if provider == crate::models::Provider::Glm { cx.theme().info } else { cx.theme().muted_foreground };
@@ -3138,14 +3295,21 @@ impl Workspace {
         let is_sub = project.sub().is_some();
         let can_clone = self.can_clone(project);
         let can_split = !is_sub && !missing && project.session().is_some();
+        let provider = self.provider_of(project);
+        let glm = provider == crate::models::Provider::Glm;
+        let has_state = missing || remote || asking || activity.is_some_and(|activity| activity != Activity::Ready);
         let item = SidebarMenuItem::new(project.name().to_string())
             .accessibility_label(format!("{}, {tip}", project.name()))
             .label_style(label_style)
             .active(on)
-            .when(missing || remote || asking || activity.is_some_and(|activity| activity != Activity::Ready), |item| {
+            .when(has_state || glm, |item| {
                 let id = id.clone();
                 item.suffix(move |_, _| -> AnyElement {
-                    let icon = if missing {
+                    // A project on GLM says so in its row: which models answer is part of what the row is.
+                    let mark = glm.then(|| div().text_xs().text_color(muted).child(t("models.glm")));
+                    let icon = if !has_state {
+                        div().into_any_element()
+                    } else if missing {
                         Icon::new(AssetIcon::TriangleAlert).xsmall().text_color(warning).into_any_element()
                     } else if remote {
                         Icon::new(AssetIcon::Laptop).xsmall().text_color(muted).into_any_element()
@@ -3160,13 +3324,13 @@ impl Workspace {
                     };
                     // State icon with a text tooltip: color and shape are not the only signal.
                     let tip = tip.clone();
-                    div()
+                    let state = div()
                         .id(SharedString::from(format!("state-{id}")))
                         .flex()
                         .items_center()
                         .child(icon)
-                        .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx))
-                        .into_any_element()
+                        .tooltip(move |window, cx| gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx));
+                    h_flex().gap_1p5().children(mark).when(has_state, |row| row.child(state)).into_any_element()
                 })
             })
             .context_menu({
@@ -3184,6 +3348,9 @@ impl Workspace {
                     menu.menu_with_disabled(pause, Box::new(TogglePause), !can_pause)
                         .menu_with_disabled(t("common.restart_session"), Box::new(RestartSession), !can_restart)
                         .menu_with_disabled(switch, Box::new(SwitchSession), missing)
+                        .separator()
+                        .menu_with_check(t("models.project_claude"), !glm, Box::new(UseClaude))
+                        .menu_with_check(t("models.project_glm"), glm, Box::new(UseGlm))
                         .separator()
                         .menu(t("common.copy_path"), Box::new(CopyPath))
                         .menu_with_disabled(t("common.show_in_finder"), Box::new(RevealInFinder), missing)
@@ -4708,7 +4875,7 @@ impl Render for Workspace {
         if let Some(to) = self.pending_provider.take() {
             cx.defer_in(window, move |this, window, cx| {
                 window.activate_window();
-                this.use_provider(to, window, cx);
+                this.use_provider_everywhere(to, window, cx);
             });
         }
         let placeholder = self.render_placeholder(cx);

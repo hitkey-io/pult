@@ -50,6 +50,12 @@ struct Entry {
     about: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     about_at: Option<u64>,
+    /// Which models the project's sessions use: `claude` or `glm`. `None` — Pult's default. Shared between
+    /// computers (the later choice wins); the GLM key itself stays on each computer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_at: Option<u64>,
 }
 
 /// The key of an entry in Pult and in the shared snapshot: the folder name, or `folder/subproject`. A folder
@@ -88,6 +94,10 @@ pub struct SharedProject {
     pub about: Option<String>,
     #[serde(default)]
     pub about_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub provider_at: u64,
 }
 
 /// This computer's shared projects snapshot: project folder name → project and its session, plus removed
@@ -124,6 +134,8 @@ pub fn shared_projects(state_file: &Path) -> Option<SharedProjects> {
                 added_at: entry.added_at.unwrap_or(0),
                 about: entry.about,
                 about_at: entry.about_at.unwrap_or(0),
+                provider: entry.provider,
+                provider_at: entry.provider_at.unwrap_or(0),
             };
             (key, shared)
         })
@@ -232,9 +244,15 @@ pub struct Project {
     session: Option<String>,
     previous: Vec<PreviousSession>,
     about: String,
+    provider: Option<String>,
 }
 
 impl Project {
+    /// The models chosen for this project (`claude` / `glm`); `None` — Pult's default.
+    pub fn provider(&self) -> Option<&str> {
+        self.provider.as_deref()
+    }
+
     /// What the subproject does, as the user wrote it; empty if not written.
     pub fn about(&self) -> &str {
         &self.about
@@ -409,7 +427,7 @@ impl ProjectStore {
             None => folders_in(&root)
                 .into_iter()
                 .filter(|path| !saved.hidden.contains(&folder_of(path)))
-                .map(|path| Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: None, sub: None, about: None, about_at: None })
+                .map(|path| Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: None, sub: None, about: None, about_at: None, provider: None, provider_at: None })
                 .collect(),
         };
         let root_chosen = saved.root.is_some() || !entries.is_empty();
@@ -486,6 +504,7 @@ impl ProjectStore {
                 session: entry.session.clone(),
                 previous: entry.previous.clone(),
                 about: entry.about.clone().unwrap_or_default(),
+                provider: entry.provider.clone(),
             })
             .collect();
         projects.sort_by_key(|project| (project.folder.to_lowercase(), project.folder.clone(), project.sub.is_some()));
@@ -535,6 +554,36 @@ impl ProjectStore {
         self.save();
     }
 
+    /// Choose the models of a project (`claude` / `glm`). Other computers take the later choice.
+    pub fn set_provider(&mut self, id: &str, provider: &str) {
+        let Some(entry) = self.entry_mut(id) else {
+            return;
+        };
+        if entry.provider.as_deref() == Some(provider) {
+            return;
+        }
+        entry.provider = Some(provider.to_string());
+        entry.provider_at = Some(unix_now());
+        self.save();
+    }
+
+    /// Give every project that has no choice of its own this one (the default is about to change, and they keep
+    /// what they had), or every project at all with `all`.
+    pub fn set_providers(&mut self, provider: &str, all: bool) {
+        let now = unix_now();
+        let mut changed = false;
+        for entry in &mut self.entries {
+            if (all || entry.provider.is_none()) && entry.provider.as_deref() != Some(provider) {
+                entry.provider = Some(provider.to_string());
+                entry.provider_at = Some(now);
+                changed = true;
+            }
+        }
+        if changed {
+            self.save();
+        }
+    }
+
     /// Whether the project's subprojects are folded in the sidebar.
     pub fn is_collapsed(&self, folder: &str) -> bool {
         self.collapsed.contains(folder)
@@ -567,7 +616,7 @@ impl ProjectStore {
         let path = self.entries[index].path.clone();
         self.entries[index].sub = Some(first.clone());
         self.entries[index].added_at = Some(now);
-        self.entries.insert(index + 1, Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: Some(now), sub: Some(second.clone()), about: None, about_at: None });
+        self.entries.insert(index + 1, Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: Some(now), sub: Some(second.clone()), about: None, about_at: None, provider: None, provider_at: None });
         self.removed.insert(folder.clone(), now);
         let kept = key_for(&folder, Some(&first));
         self.removed.remove(&kept);
@@ -590,7 +639,7 @@ impl ProjectStore {
             return Err(t("projects.project_not_found").into());
         };
         let path = self.entries[last].path.clone();
-        self.entries.insert(last + 1, Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: Some(unix_now()), sub: Some(name.clone()), about: None, about_at: None });
+        self.entries.insert(last + 1, Entry { path, session: None, previous: Vec::new(), pinned_at: None, added_at: Some(unix_now()), sub: Some(name.clone()), about: None, about_at: None, provider: None, provider_at: None });
         let key = key_for(folder, Some(&name));
         self.removed.remove(&key);
         self.save();
@@ -635,7 +684,7 @@ impl ProjectStore {
             let name = folder_of(path);
             if path.is_dir() && self.in_root(path) && !self.has_folder(&name) {
                 let now = unix_now();
-                self.entries.push(Entry { path: path.clone(), session: None, previous: Vec::new(), pinned_at: None, added_at: Some(now), sub: None, about: None, about_at: None });
+                self.entries.push(Entry { path: path.clone(), session: None, previous: Vec::new(), pinned_at: None, added_at: Some(now), sub: None, about: None, about_at: None, provider: None, provider_at: None });
                 self.removed.remove(&name);
                 added.push(name);
             }
@@ -764,6 +813,7 @@ impl ProjectStore {
         let mut removed: BTreeMap<String, u64> = BTreeMap::new();
         let mut pins: BTreeMap<String, SharedProject> = BTreeMap::new();
         let mut abouts: BTreeMap<String, (u64, String)> = BTreeMap::new();
+        let mut providers: BTreeMap<String, (u64, String)> = BTreeMap::new();
         for file in files.filter_map(Result::ok) {
             let Some(snapshot) =
                 fs::read_to_string(file.path()).ok().and_then(|text| serde_json::from_str::<SharedProjects>(&text).ok())
@@ -778,6 +828,11 @@ impl ProjectStore {
                 *latest = (*latest).max(project.added_at);
                 if project.about_at > 0 && abouts.get(&name).is_none_or(|(at, _)| project.about_at > *at) {
                     abouts.insert(name.clone(), (project.about_at, project.about.clone().unwrap_or_default()));
+                }
+                if let Some(provider) = project.provider.clone().filter(|_| project.provider_at > 0)
+                    && providers.get(&name).is_none_or(|(at, _)| project.provider_at > *at)
+                {
+                    providers.insert(name.clone(), (project.provider_at, provider));
                 }
                 if project.session.is_some() && pins.get(&name).is_none_or(|current| project.pinned_at > current.pinned_at) {
                     pins.insert(name, project);
@@ -815,6 +870,8 @@ impl ProjectStore {
                     sub: sub.map(str::to_string),
                     about: None,
                     about_at: None,
+                    provider: None,
+                    provider_at: None,
                 });
                 self.removed.remove(&name);
                 adopted.changed = true;
@@ -899,6 +956,18 @@ impl ProjectStore {
                 let about = clean_about(about);
                 entry.about = (!about.is_empty()).then_some(about);
                 entry.about_at = Some(*at);
+                adopted.changed = true;
+            }
+        }
+
+        // Which models: the later choice wins.
+        for entry in &mut self.entries {
+            let Some((at, provider)) = providers.get(&key_of(entry)) else {
+                continue;
+            };
+            if *at > entry.provider_at.unwrap_or(0) && matches!(provider.as_str(), "claude" | "glm") {
+                entry.provider = Some(provider.clone());
+                entry.provider_at = Some(*at);
                 adopted.changed = true;
             }
         }
@@ -1065,7 +1134,7 @@ mod tests {
     use super::*;
 
     fn entry(path: &Path, session: Option<&str>, pinned_at: Option<u64>, added_at: Option<u64>) -> Entry {
-        Entry { path: path.to_path_buf(), session: session.map(str::to_string), previous: Vec::new(), pinned_at, added_at, sub: None, about: None, about_at: None }
+        Entry { path: path.to_path_buf(), session: session.map(str::to_string), previous: Vec::new(), pinned_at, added_at, sub: None, about: None, about_at: None, provider: None, provider_at: None }
     }
 
     fn store(root: &Path, entries: Vec<Entry>, removed: &[(&str, u64)]) -> ProjectStore {
@@ -1200,6 +1269,8 @@ mod tests {
                         added_at: entry.added_at.unwrap_or(0),
                         about: entry.about.clone(),
                         about_at: entry.about_at.unwrap_or(0),
+                        provider: entry.provider.clone(),
+                        provider_at: entry.provider_at.unwrap_or(0),
                     };
                     (key_of(entry), shared)
                 })
@@ -1386,6 +1457,30 @@ mod tests {
         // Cleared: the line goes empty everywhere.
         here.set_about("MAPLE/One", "");
         assert_eq!(here.list()[0].about(), "");
+    }
+
+    #[test]
+    fn the_models_of_a_project_travel_and_the_later_choice_wins() {
+        let root = Path::new("/r");
+        let mut here = store(root, vec![entry(&root.join("MAPLE"), Some("s"), None, Some(5)), entry(&root.join("JADE"), None, None, Some(5))], &[]);
+        let mut there = store(Path::new("/o"), vec![entry(Path::new("/o/MAPLE"), Some("s"), None, Some(5)), entry(Path::new("/o/JADE"), None, None, Some(5))], &[]);
+        assert_eq!(here.list()[1].provider(), None, "no choice — the default");
+        here.set_provider("MAPLE", "glm");
+        let dir = snapshots("provider", &[&snapshot_of(&here)]);
+        there.adopt_shared(&dir, |_| true);
+        assert_eq!(there.list()[1].provider(), Some("glm"));
+        assert_eq!(there.list()[0].provider(), None);
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        there.set_provider("MAPLE", "claude");
+        let dir = snapshots("provider2", &[&snapshot_of(&there)]);
+        here.adopt_shared(&dir, |_| true);
+        assert_eq!(here.list()[1].provider(), Some("claude"));
+        // Freezing the default: projects without a choice keep the old one, chosen ones stay as they are.
+        here.set_providers("glm", false);
+        assert_eq!(here.list()[0].provider(), Some("glm"));
+        assert_eq!(here.list()[1].provider(), Some("claude"));
+        here.set_providers("claude", true);
+        assert!(here.list().iter().all(|project| project.provider() == Some("claude")));
     }
 
     #[test]

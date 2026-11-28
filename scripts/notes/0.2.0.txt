@@ -1,0 +1,2 @@
+Each project now has its own models: Claude or GLM. Switch one from the chip in the title bar or the project menu; Settings → Models moves every project at once.
+After an update the Dock and Finder show the new app icon right away.

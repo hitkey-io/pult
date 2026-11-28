@@ -1,16 +1,16 @@
-//! Switching Claude Code between Claude and GLM: the question when a turn is running, the write to the Claude Code
-//! settings and the restart of the running sessions, with its progress. The settings themselves are `models`.
+//! Moving every project between Claude and GLM (Settings → Models): the question when a turn is running and the
+//! restart of the running sessions with their new `--settings`, with its progress. One project at a time is
+//! `Workspace::switch_project_provider`; the settings themselves are `models`.
 //!
-//! Running sessions always restart: `~/.claude/settings.json` is read when a Claude Code process starts, so
-//! without a restart the switch would only reach new sessions. `claude stop` + `respawn` keep the session id,
-//! name and conversation; a turn that was running is cut off, which is why the window asks first.
+//! Running sessions always restart: a Claude Code process reads its settings when it starts. `claude stop` + the
+//! new flag + `respawn` keep the session id, name and conversation; a turn that was running is cut off, which is
+//! why the window asks first.
 
 use gpui_kit::component::{
     ActiveTheme as _, Icon, Sizable as _, WindowExt as _,
     button::{Button, ButtonVariants as _},
     dialog::DialogFooter,
     h_flex,
-    notification::Notification,
     progress::Progress,
     spinner::Spinner,
     v_flex,
@@ -58,6 +58,8 @@ enum Phase {
 pub struct SwitchView {
     workspace: WeakEntity<Workspace>,
     to: Provider,
+    /// The `--settings` value the sessions come back with.
+    flag: String,
     targets: Vec<Target>,
     phase: Phase,
     /// `go` has been called: the work is under way (or done).
@@ -76,26 +78,19 @@ impl SwitchView {
             return;
         }
         self.phase = Phase::Run { done: 0 };
-        let (to, targets, workspace) = (self.to, self.targets.clone(), self.workspace.clone());
+        let (targets, workspace, flag) = (self.targets.clone(), self.workspace.clone(), self.flag.clone());
         let ids: Vec<String> = targets.iter().map(|target| target.id.clone()).collect();
         let _ = workspace.update(cx, |this, cx| this.models_restarting(&ids, cx));
         cx.notify();
         cx.spawn_in(window, async move |this, cx| {
-            let applied = cx.background_spawn(async move { models::apply(&Paths::real(), to) }).await;
-            if let Err(reason) = applied {
-                let _ = this.update_in(cx, |this, window, cx| {
-                    window.close_dialog(cx);
-                    window.push_notification(Notification::error(tr!("models.write_failed", reason = reason)), cx);
-                    let ids: Vec<String> = this.targets.iter().map(|target| target.id.clone()).collect();
-                    let _ = this.workspace.update(cx, |ws, cx| ws.models_switched(&ids, cx));
-                });
-                return;
-            }
             // All at once: the sessions are independent, and the switch should take effect now.
             let tasks: Vec<_> = targets
                 .iter()
                 .cloned()
-                .map(|target| cx.background_spawn(async move { (target.name.clone(), sessions::restart(&target.short, target.pid)) }))
+                .map(|target| {
+                    let flag = flag.clone();
+                    cx.background_spawn(async move { (target.name.clone(), sessions::switch_settings(&target.short, target.pid, &flag)) })
+                })
                 .collect();
             let mut failed = Vec::new();
             for task in tasks {
@@ -177,20 +172,21 @@ impl Render for SwitchView {
     }
 }
 
-/// Switch Claude Code to `to`. `targets` — the running sessions of Pult's projects; with none, the file is
-/// just rewritten. The caller has already checked that the key is there and the provider is a different one.
-pub fn start(workspace: WeakEntity<Workspace>, to: Provider, targets: Vec<Target>, window: &mut Window, cx: &mut App) {
-    if targets.is_empty() {
-        match models::apply(&Paths::real(), to) {
-            Ok(()) => window.push_notification(tr!("models.done", to = provider_name(to)), cx),
-            Err(reason) => window.push_notification(Notification::error(tr!("models.write_failed", reason = reason)), cx),
-        }
-        // The caller (the Workspace itself) rereads the provider: updating it from here would be a second
-        // borrow of it.
-        return;
-    }
+/// The default becomes `to` (new projects get it) and the `--settings` value of `to` is returned: for GLM its
+/// session file is written first. Claude Code's own `settings.json` is not touched.
+pub fn prepare(paths: &Paths, to: Provider) -> Result<String, String> {
+    let flag = models::session_flag(paths, to)?;
+    let mut config = models::load(paths);
+    config.default_glm = to == Provider::Glm;
+    models::save(paths, &config)?;
+    Ok(flag)
+}
+
+/// Restart the running sessions of all projects on `to` (`flag` — from `prepare`). The caller has already saved the
+/// choice and checked that there are sessions to restart.
+pub fn start(workspace: WeakEntity<Workspace>, to: Provider, flag: String, targets: Vec<Target>, window: &mut Window, cx: &mut App) {
     let turns = targets.iter().any(|target| target.working);
-    let view = cx.new(|_| SwitchView { workspace, to, targets, phase: if turns { Phase::Ask } else { Phase::Run { done: 0 } }, started: false });
+    let view = cx.new(|_| SwitchView { workspace, to, flag, targets, phase: if turns { Phase::Ask } else { Phase::Run { done: 0 } }, started: false });
     show(view.clone(), window, cx);
     if !turns {
         // Not right now: the caller is the Workspace in the middle of its own update, and `go` updates it.
@@ -209,7 +205,7 @@ pub fn demo(workspace: WeakEntity<Workspace>, kind: &str, window: &mut Window, c
         "switch-failed" => Phase::Failed(vec!["EMBER".into(), "MAPLE".into()]),
         _ => Phase::Ask,
     };
-    let view = cx.new(|_| SwitchView { workspace, to: Provider::Glm, targets, phase, started: false });
+    let view = cx.new(|_| SwitchView { workspace, to: Provider::Glm, flag: String::new(), targets, phase, started: false });
     show(view.clone(), window, cx);
     // `switch-go`: the real run on made-up sessions, as if "Switch and restart" was pressed.
     if kind == "switch-go" {

@@ -1,1 +1,0 @@
-After an update the Dock and Finder show the new app icon right away.

@@ -588,8 +588,9 @@ fn parse_agents(stdout: &[u8]) -> Option<Vec<Agent>> {
 }
 
 /// A new background session named after the project. Returns its full id.
-pub fn start_new(cwd: &Path, name: &str) -> Result<String, StartError> {
-    let short = run_background(cwd, &["--bg", "-n", name, SKIP_PERMISSIONS, SHARED_CHECKOUT[0], SHARED_CHECKOUT[1]])?;
+/// `settings` — the `--settings` value for the project's models (`models::session_flag`).
+pub fn start_new(cwd: &Path, name: &str, settings: &str) -> Result<String, StartError> {
+    let short = run_background(cwd, &["--bg", "-n", name, SKIP_PERMISSIONS, SHARED_CHECKOUT[0], settings])?;
     agents()
         .into_iter()
         .find(|agent| agent.id.as_deref() == Some(short.as_str()))
@@ -603,12 +604,12 @@ pub fn start_new(cwd: &Path, name: &str) -> Result<String, StartError> {
 /// The transcript is copied by Pult rather than with `--fork-session`: a forked background session writes its
 /// transcript only after its first answer, so a fork paused before that would lose the conversation. A line
 /// still being written (the source is answering) is left out.
-pub fn clone_session(cwd: &Path, source: &str, name: &str) -> Result<String, StartError> {
+pub fn clone_session(cwd: &Path, source: &str, name: &str, settings: &str) -> Result<String, StartError> {
     let from = transcript_path(cwd, source).ok_or_else(|| StartError::Failed(t("sessions.no_conversation_to_copy").into()))?;
     let id = new_session_id().map_err(|error| StartError::Failed(tr!("sessions.couldn_t_copy_conversation", error = error)))?;
     copy_transcript(&from, &transcripts_dir(cwd), source, &id)
         .map_err(|error| StartError::Failed(tr!("sessions.couldn_t_copy_conversation", error = error)))?;
-    let short = run_background(cwd, &["--resume", &id, "--bg", "-n", name, SKIP_PERMISSIONS, SHARED_CHECKOUT[0], SHARED_CHECKOUT[1]])?;
+    let short = run_background(cwd, &["--resume", &id, "--bg", "-n", name, SKIP_PERMISSIONS, SHARED_CHECKOUT[0], settings])?;
     for _ in 0..10 {
         if let Some(agents) = try_agents()
             && let Some(agent) = agents.iter().find(|agent| agent.id.as_deref() == Some(short.as_str()))
@@ -680,7 +681,7 @@ fn new_session_id() -> std::io::Result<String> {
 /// pinned one stayed down. Such a session is restarted with
 /// `respawn` — same id. Returns the session to pin when Claude Code still started a copy (it carries the same
 /// conversation).
-pub fn resume(cwd: &Path, session_id: &str) -> Result<Option<String>, StartError> {
+pub fn resume(cwd: &Path, session_id: &str, settings: &str) -> Result<Option<String>, StartError> {
     let listed = |agents: &[Agent], session: &str| {
         agents.iter().any(|agent| agent.session_id == session && agent.pid.is_some() && agent.state.as_deref() != Some("failed"))
     };
@@ -690,7 +691,10 @@ pub fn resume(cwd: &Path, session_id: &str) -> Result<Option<String>, StartError
         .filter(|agent| agent.session_id == session_id && agent.pid.is_none() && agent.state.as_deref() != Some("stopped"))
         .find_map(|agent| agent.id);
     if let Some(short) = known
-        && respawn(&short).is_ok()
+        && {
+            set_settings_flag(&short, settings);
+            respawn(&short).is_ok()
+        }
     {
         for _ in 0..10 {
             if try_agents().is_some_and(|agents| listed(&agents, session_id)) {
@@ -699,7 +703,7 @@ pub fn resume(cwd: &Path, session_id: &str) -> Result<Option<String>, StartError
             std::thread::sleep(Duration::from_millis(500));
         }
     }
-    let short = run_background(cwd, &["--resume", session_id, "--bg", SKIP_PERMISSIONS, SHARED_CHECKOUT[0], SHARED_CHECKOUT[1]])?;
+    let short = run_background(cwd, &["--resume", session_id, "--bg", SKIP_PERMISSIONS, SHARED_CHECKOUT[0], settings])?;
     // Under which session Claude Code started it: the same, or a copy.
     for _ in 0..10 {
         if let Some(agents) = try_agents()
@@ -769,6 +773,55 @@ fn share_checkout(short_id: &str) {
     if let Ok(text) = serde_json::to_string_pretty(&state) {
         let _ = fs::write(&path, text);
     }
+}
+
+/// Whether a `--settings` value is one Pult puts there: the shared-checkout JSON or the GLM session file.
+fn ours(value: &str) -> bool {
+    value == SHARED_CHECKOUT[1] || crate::models::is_glm_flag(value)
+}
+
+/// Point the `--settings` flag Pult gave a job (`respawnFlags` in its `state.json`) at `value`; with `add`, also
+/// give it one if it has none. A `--settings` of the user's own is left alone. `true` — the file changed.
+pub fn replace_settings_flag(state_path: &Path, value: &str, add: bool) -> bool {
+    let Ok(text) = fs::read_to_string(state_path) else {
+        return false;
+    };
+    let Ok(mut state) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return false;
+    };
+    let Some(flags) = state.get_mut("respawnFlags").and_then(serde_json::Value::as_array_mut) else {
+        return false;
+    };
+    let at = flags.windows(2).position(|pair| pair[0].as_str() == Some(SHARED_CHECKOUT[0]) && pair[1].as_str().is_some_and(ours));
+    match at {
+        Some(index) if flags[index + 1].as_str() == Some(value) => return false,
+        Some(index) => flags[index + 1] = serde_json::Value::String(value.into()),
+        None if add && !flags.iter().any(|flag| flag.as_str() == Some(SHARED_CHECKOUT[0])) => {
+            flags.push(serde_json::Value::String(SHARED_CHECKOUT[0].into()));
+            flags.push(serde_json::Value::String(value.into()));
+        }
+        None => return false,
+    }
+    serde_json::to_string_pretty(&state).is_ok_and(|text| fs::write(state_path, text).is_ok())
+}
+
+/// The models flag of a background session, for its next restart.
+pub fn set_settings_flag(short_id: &str, value: &str) {
+    replace_settings_flag(&job_state_path(short_id), value, true);
+}
+
+/// Move a running background session to other models: stop it, wait for the process, point its flags at `value`,
+/// `respawn` — the same id, name and conversation.
+pub fn switch_settings(short_id: &str, pid: Option<u32>, value: &str) -> Result<(), StartError> {
+    stop(short_id);
+    if let Some(pid) = pid {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while alive(pid) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    }
+    set_settings_flag(short_id, value);
+    respawn(short_id)
 }
 
 /// The one entry of a job's `providerEnv` that isn't a provider setting.
@@ -1280,6 +1333,36 @@ mod activity_tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[test]
+    fn the_models_flag_of_a_job_is_swapped_and_the_users_own_settings_left_alone() {
+        let dir = std::env::temp_dir().join(format!("pult-flags-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.json");
+        let glm = "/u/Library/Application Support/pult/glm-session.json";
+        let write = |flags: serde_json::Value| fs::write(&path, serde_json::json!({"cwd": "/x", "respawnFlags": flags}).to_string()).unwrap();
+        let flags = || -> Vec<String> {
+            let state: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+            state["respawnFlags"].as_array().unwrap().iter().map(|flag| flag.as_str().unwrap().to_string()).collect()
+        };
+        // Pult's shared-checkout flag becomes the GLM file, and back.
+        write(serde_json::json!([SKIP_PERMISSIONS, "--settings", SHARED_CHECKOUT[1]]));
+        assert!(replace_settings_flag(&path, glm, true));
+        assert_eq!(flags(), vec![SKIP_PERMISSIONS, "--settings", glm]);
+        assert!(!replace_settings_flag(&path, glm, true), "nothing to change");
+        assert!(replace_settings_flag(&path, SHARED_CHECKOUT[1], false));
+        assert_eq!(flags(), vec![SKIP_PERMISSIONS, "--settings", SHARED_CHECKOUT[1]]);
+        // A job without the flag gets one only when asked to.
+        write(serde_json::json!([SKIP_PERMISSIONS]));
+        assert!(!replace_settings_flag(&path, glm, false));
+        assert!(replace_settings_flag(&path, glm, true));
+        assert_eq!(flags(), vec![SKIP_PERMISSIONS, "--settings", glm]);
+        // The user's own --settings is never replaced.
+        write(serde_json::json!(["--settings", "/mine.json"]));
+        assert!(!replace_settings_flag(&path, glm, true));
+        assert_eq!(flags(), vec!["--settings", "/mine.json"]);
+    }
+
     /// A real clone of an existing session: `PULT_CLONE_DIR=<trusted folder> PULT_CLONE_SOURCE=<session id>
     /// cargo test live_clone -- --ignored --nocapture`. Starts the copy in the background and stops it again.
     #[test]
@@ -1287,7 +1370,7 @@ mod activity_tests {
     fn live_clone() {
         let dir = PathBuf::from(std::env::var("PULT_CLONE_DIR").unwrap());
         let source = std::env::var("PULT_CLONE_SOURCE").unwrap();
-        let copy = clone_session(&dir, &source, "pult-clone-check").unwrap();
+        let copy = clone_session(&dir, &source, "pult-clone-check", SHARED_CHECKOUT[1]).unwrap();
         println!("copy: {copy}");
         assert_ne!(copy, source);
         assert!(has_transcript(&dir, &copy));

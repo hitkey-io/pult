@@ -744,14 +744,14 @@ impl SettingsView {
     }
 }
 
-/// Change the saved GLM settings. While GLM is on, Claude Code's own settings follow (new sessions use them;
-/// running ones pick them up at their next restart).
+/// Change the saved GLM settings. The GLM session file follows (sessions of GLM projects read it when they start;
+/// running ones pick it up at their next restart).
 fn edit_config(workspace: &WeakEntity<Workspace>, cx: &mut App, change: impl FnOnce(&mut models::Config)) {
     let paths = crate::sync::Paths::real();
     let mut config = models::load(&paths);
     change(&mut config);
-    if models::save(&paths, &config).is_ok() && config.has_key() && models::current(&paths) == Provider::Glm {
-        let _ = models::apply(&paths, Provider::Glm);
+    if models::save(&paths, &config).is_ok() {
+        models::refresh_glm_session(&paths);
     }
     let _ = workspace.update(cx, |workspace, cx| {
         workspace.refresh_models();

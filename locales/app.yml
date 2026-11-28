@@ -1676,8 +1676,8 @@ models:
     en: "Models"
     ru: "Модели"
   chip_tooltip:
-    en: "Claude Code models: %{name}. Change"
-    ru: "Модели Claude Code: %{name}. Сменить"
+    en: "This project’s models: %{name}. Change"
+    ru: "Модели этого проекта: %{name}. Сменить"
   menu_label:
     en: "Claude Code models"
     ru: "Модели Claude Code"
@@ -1700,14 +1700,14 @@ models:
     en: "Configure models…"
     ru: "Настроить модели…"
   provider_title:
-    en: "Models"
-    ru: "Модели"
+    en: "All projects"
+    ru: "Все проекты"
   status_claude:
-    en: "Claude Code is using Claude now"
-    ru: "Сейчас Claude Code ходит в Claude"
+    en: "New projects use Claude. Choosing here moves every project; each one can also be switched on its own (its menu or the chip above)."
+    ru: "Новые проекты — на Claude. Выбор здесь переводит все проекты; каждый можно переключить и отдельно — в его меню или чипом вверху."
   status_glm:
-    en: "Claude Code is using GLM now"
-    ru: "Сейчас Claude Code ходит в GLM"
+    en: "New projects use GLM. Choosing here moves every project; each one can also be switched on its own (its menu or the chip above)."
+    ru: "Новые проекты — на GLM. Выбор здесь переводит все проекты; каждый можно переключить и отдельно — в его меню или чипом вверху."
   plan_title:
     en: "GLM plan"
     ru: "Тариф GLM"
@@ -1808,14 +1808,32 @@ models:
     en: "Couldn’t write the Claude Code settings: %{reason}"
     ru: "Не удалось записать настройки Claude Code: %{reason}"
   cmd_to_glm:
-    en: "Models: switch to GLM"
-    ru: "Модели: перейти на GLM"
+    en: "This project: switch to GLM"
+    ru: "Этот проект — на GLM"
   cmd_to_claude:
-    en: "Models: switch back to Claude"
-    ru: "Модели: вернуться на Claude"
+    en: "This project: switch to Claude"
+    ru: "Этот проект — на Claude"
   cmd_settings:
     en: "Models: settings…"
     ru: "Модели: настройки…"
+  project_claude:
+    en: "Models: Claude"
+    ru: "Модели: Claude"
+  project_glm:
+    en: "Models: GLM"
+    ru: "Модели: GLM"
+  project_ask_title:
+    en: "Switch “%{name}” to %{to}?"
+    ru: "Перевести «%{name}» на %{to}?"
+  project_switch:
+    en: "Switch"
+    ru: "Перевести"
+  project_done:
+    en: "“%{name}” now uses %{to}. The conversation goes on."
+    ru: "«%{name}» теперь на %{to}. Переписка продолжается."
+  project_later:
+    en: "“%{name}” will use %{to} from its next start."
+    ru: "«%{name}» будет на %{to} со следующего запуска."
 ideas:
   context:
     en: "This project has an ideas and bookmarks file kept by Pult: %{path} (links: %{links}; sections: %{sections}). When the user talks about ideas, bookmarks, links to look at or similar tools, read it with the mcp__pult__ideas_read tool (the whole file, a section, or a word); without that tool, read the file at that path."

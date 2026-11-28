@@ -8,6 +8,12 @@
 //!
 //! The GLM settings (plan, key, models) live in `models.json` in Pult's data folder (mode 600). The key is
 //! never printed or logged.
+//!
+//! Since 0.2.0 the models are chosen per project. `~/.claude/settings.json` stays Claude's; a GLM project's session
+//! is started with `--settings <glm-session.json>` (`session_flag`), a file in Pult's data folder (mode 600) that
+//! carries GLM's variables and the shared-checkout setting. Claude Code keeps the flag in the job's `respawnFlags`,
+//! so the session stays on GLM across restarts; switching a project rewrites that flag and restarts its session.
+//! A Mac where the old global switch left GLM in `settings.json` is moved over once (`migrate_global`).
 
 use std::{
     collections::BTreeMap,
@@ -98,11 +104,14 @@ pub struct Config {
     /// What the managed variables held before GLM took them: `null` — the variable wasn't there.
     #[serde(default)]
     pub saved: Option<BTreeMap<String, Option<Value>>>,
+    /// New projects (and projects with no choice of their own) use GLM.
+    #[serde(default)]
+    pub default_glm: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { plan: Plan::Global, key: String::new(), main: default_model(), small: default_model(), saved: None }
+        Self { plan: Plan::Global, key: String::new(), main: default_model(), small: default_model(), saved: None, default_glm: false }
     }
 }
 
@@ -281,6 +290,87 @@ pub fn apply(paths: &Paths, to: Provider) -> Result<(), String> {
     }
 }
 
+/// `claude` / `glm` as stored with a project.
+pub fn provider_key(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Claude => "claude",
+        Provider::Glm => "glm",
+    }
+}
+
+pub fn provider_from_key(key: &str) -> Option<Provider> {
+    match key {
+        "claude" => Some(Provider::Claude),
+        "glm" => Some(Provider::Glm),
+        _ => None,
+    }
+}
+
+/// The settings file GLM sessions are started with.
+const GLM_SESSION: &str = "glm-session.json";
+
+/// Whether a `--settings` value is Pult's GLM file.
+pub fn is_glm_flag(value: &str) -> bool {
+    value.ends_with(&format!("/{GLM_SESSION}"))
+}
+
+/// Write the GLM session settings: the shared-checkout setting every Pult session has, plus GLM's variables.
+/// Returns its path. A missing key is an error.
+pub fn write_glm_session(paths: &Paths) -> Result<PathBuf, String> {
+    let config = load(paths);
+    if !config.has_key() {
+        return Err("no GLM key".into());
+    }
+    let mut settings: Value = serde_json::from_str(crate::sessions::SHARED_CHECKOUT[1]).unwrap_or_else(|_| json!({}));
+    let env: Map<String, Value> = glm_env(&config).into_iter().map(|(name, value)| (name.to_string(), Value::String(value))).collect();
+    settings["env"] = Value::Object(env);
+    fs::create_dir_all(&paths.app).map_err(|error| error.to_string())?;
+    let path = paths.app.join(GLM_SESSION);
+    let text = serde_json::to_string_pretty(&settings).map_err(|error| error.to_string())?;
+    write_atomic(&path, &(text + "\n"), 0o600)?;
+    Ok(path)
+}
+
+/// The `--settings` value a session of a project on `provider` is started with.
+pub fn session_flag(paths: &Paths, provider: Provider) -> Result<String, String> {
+    match provider {
+        Provider::Claude => Ok(crate::sessions::SHARED_CHECKOUT[1].to_string()),
+        Provider::Glm => write_glm_session(paths).map(|path| path.to_string_lossy().into_owned()),
+    }
+}
+
+/// Keep the GLM session file in step with the saved plan, key and models (sessions read it when they start).
+pub fn refresh_glm_session(paths: &Paths) {
+    if paths.app.join(GLM_SESSION).exists() || load(paths).has_key() {
+        let _ = write_glm_session(paths);
+    }
+}
+
+/// Once, on a Mac where the old global switch left GLM in `~/.claude/settings.json`: the file goes back to Claude,
+/// GLM becomes the default, and the background sessions Pult started are told to come back on GLM (their
+/// `respawnFlags`; the running processes keep what they have until they restart). `true` — moved over.
+pub fn migrate_global(paths: &Paths) -> bool {
+    if current(paths) != Provider::Glm || !load(paths).has_key() {
+        return false;
+    }
+    let Ok(glm) = write_glm_session(paths) else {
+        return false;
+    };
+    if apply(paths, Provider::Claude).is_err() {
+        return false;
+    }
+    let mut config = load(paths);
+    config.default_glm = true;
+    let _ = save(paths, &config);
+    let glm = glm.to_string_lossy().into_owned();
+    if let Ok(jobs) = fs::read_dir(paths.claude.join("jobs")) {
+        for job in jobs.filter_map(Result::ok) {
+            crate::sessions::replace_settings_flag(&job.path().join("state.json"), &glm, false);
+        }
+    }
+    true
+}
+
 /// Names that matter in the shell environment.
 pub const SHELL_NAMES: [&str; 3] = ["ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"];
 
@@ -339,6 +429,42 @@ mod tests {
         let config = Config { key: "sk-test".into(), ..Config::default() };
         save(paths, &config).unwrap();
         config
+    }
+
+    #[test]
+    fn a_glm_project_gets_its_own_settings_file_and_claude_the_shared_checkout() {
+        let paths = scratch("session");
+        assert_eq!(session_flag(&paths, Provider::Claude).unwrap(), crate::sessions::SHARED_CHECKOUT[1]);
+        assert!(session_flag(&paths, Provider::Glm).is_err(), "no key — no GLM");
+        with_key(&paths);
+        let flag = session_flag(&paths, Provider::Glm).unwrap();
+        assert!(is_glm_flag(&flag) && !is_glm_flag(crate::sessions::SHARED_CHECKOUT[1]));
+        let file: Value = serde_json::from_str(&fs::read_to_string(&flag).unwrap()).unwrap();
+        assert_eq!(file["worktree"]["bgIsolation"], "none");
+        assert_eq!(file["env"]["ANTHROPIC_BASE_URL"], "https://api.z.ai/api/anthropic");
+        assert_eq!(file["env"]["ANTHROPIC_AUTH_TOKEN"], "sk-test");
+        let mode = std::os::unix::fs::PermissionsExt::mode(&fs::metadata(&flag).unwrap().permissions()) & 0o777;
+        assert_eq!(mode, 0o600, "the file holds the key");
+        // Claude Code's own settings stay untouched.
+        assert!(!settings_path(&paths).exists());
+    }
+
+    #[test]
+    fn the_old_global_glm_moves_to_a_default_and_the_sessions_follow() {
+        let paths = scratch("migrate");
+        with_key(&paths);
+        fs::write(settings_path(&paths), json!({"model": "opus"}).to_string()).unwrap();
+        apply(&paths, Provider::Glm).unwrap();
+        let job = paths.claude.join("jobs/abc12345/state.json");
+        fs::create_dir_all(job.parent().unwrap()).unwrap();
+        fs::write(&job, json!({"respawnFlags": ["--settings", crate::sessions::SHARED_CHECKOUT[1]]}).to_string()).unwrap();
+        assert!(migrate_global(&paths));
+        assert_eq!(current(&paths), Provider::Claude, "settings.json is Claude's again");
+        assert_eq!(settings(&paths), json!({"model": "opus"}));
+        assert!(load(&paths).default_glm);
+        let flags: Value = serde_json::from_str(&fs::read_to_string(&job).unwrap()).unwrap();
+        assert!(is_glm_flag(flags["respawnFlags"][1].as_str().unwrap()));
+        assert!(!migrate_global(&paths), "once");
     }
 
     #[test]
