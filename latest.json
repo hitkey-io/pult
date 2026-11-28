@@ -1,9 +1,9 @@
 {
-  "version": "0.2.3",
-  "sha256": "c1ba3af5cbbb8a282014f6d64ce8040eab61f4f0155f47027c56fbb444c5128e",
-  "size": 15947838,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.3/Pult-0.2.3.dmg",
+  "version": "0.2.4",
+  "sha256": "72f3de5fc5cae18f8de4b5672626975717eafe7c3149de9a7b8df5c6a09b3bb6",
+  "size": 15956220,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.4/Pult-0.2.4.dmg",
   "notes": [
-    "Settings → Languages: “Remove…” now takes away everything “Install” put in place — the Claude Code plugin, the rule, the link and the server. A server that is part of Xcode or was installed by something else stays, and the window says so before you agree."
+    "Settings → Languages: after “Install” or “Remove…” the running sessions of your projects restart on their own so they pick the change up at once — idle ones right away, busy ones as soon as their turn ends. The conversation goes on."
   ]
 }
