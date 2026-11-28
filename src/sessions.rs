@@ -306,6 +306,21 @@ fn parse_login_env(stdout: &[u8]) -> Option<LoginEnv> {
     (!claude.as_os_str().is_empty()).then_some(LoginEnv { claude, vars })
 }
 
+/// A shell command with the user's login environment (their PATH: `go`, `npm`, `rustup`…).
+pub fn login_command(script: &str) -> Command {
+    let mut command = Command::new("/bin/zsh");
+    match login_env() {
+        Some(env) => {
+            command.arg("-c").arg(script).envs(env.vars);
+        }
+        None => {
+            command.arg("-lc").arg(script);
+        }
+    }
+    command.stdin(Stdio::null());
+    command
+}
+
 /// `claude` with the user's login environment.
 pub fn claude(cwd: &Path, args: &[&str]) -> Command {
     ensure_daemon();

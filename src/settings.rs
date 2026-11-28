@@ -22,6 +22,7 @@ use gpui_kit::{
 use gpui_kit::assets::IconName as AssetIcon;
 
 use crate::i18n::{LangPref, count, t};
+use crate::lsp;
 use crate::models::{self, Provider};
 use crate::projects::{ThemePref, display_path};
 use crate::rename::{self, Target};
@@ -75,6 +76,14 @@ struct ModelsUi {
     shell_env: bool,
 }
 
+/// The "Languages" page: what is in place per language (`None` — still checking), the step each install is on,
+/// what failed.
+struct LanguagesUi {
+    statuses: Option<Vec<lsp::Status>>,
+    busy: std::collections::HashMap<&'static str, Option<lsp::Step>>,
+    errors: std::collections::HashMap<&'static str, lsp::Failure>,
+}
+
 /// The index of the "Models" page: Settings opened from the chip in the title bar lands on it.
 pub const MODELS_PAGE: usize = 1;
 
@@ -82,6 +91,7 @@ pub struct SettingsView {
     workspace: WeakEntity<Workspace>,
     sync: SyncUi,
     models: ModelsUi,
+    languages: LanguagesUi,
     /// The page the window was opened on.
     start_page: SelectIndex,
     _subscriptions: Vec<Subscription>,
@@ -765,6 +775,168 @@ fn model_options() -> Vec<(SharedString, SharedString)> {
 
 impl SettingsView {
     /// "Models": who Claude Code talks to, and what GLM is given.
+    fn languages_refresh(&mut self, cx: &mut Context<Self>) {
+        cx.spawn(async move |this, cx| {
+            let statuses = cx.background_spawn(async { lsp::statuses() }).await;
+            let _ = this.update(cx, |this, cx| {
+                this.languages.statuses = Some(statuses);
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// "Install": every step in turn; one that is done already passes at once.
+    fn languages_install(&mut self, id: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(language) = lsp::language(id) else { return };
+        if self.languages.busy.contains_key(id) {
+            return;
+        }
+        self.languages.errors.remove(id);
+        self.languages.busy.insert(id, Some(lsp::Step::Server));
+        cx.notify();
+        cx.spawn_in(window, async move |this, cx| {
+            let mut failed = None;
+            for step in lsp::STEPS {
+                let _ = this.update(cx, |this, cx| {
+                    this.languages.busy.insert(id, Some(step));
+                    cx.notify();
+                });
+                if let Err(failure) = cx.background_spawn(async move { lsp::run_step(language, step) }).await {
+                    failed = Some(failure);
+                    break;
+                }
+            }
+            let statuses = cx.background_spawn(async { lsp::statuses() }).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.languages.busy.remove(id);
+                this.languages.statuses = Some(statuses);
+                match failed {
+                    Some(failure) => {
+                        this.languages.errors.insert(id, failure);
+                    }
+                    None => window.push_notification(tr!("lsp.done", name = language.name), cx),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn languages_remove(&mut self, id: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(language) = lsp::language(id) else { return };
+        if self.languages.busy.contains_key(id) {
+            return;
+        }
+        self.languages.errors.remove(id);
+        self.languages.busy.insert(id, None);
+        cx.notify();
+        cx.spawn_in(window, async move |this, cx| {
+            let result = cx.background_spawn(async move { lsp::remove(language) }).await;
+            let statuses = cx.background_spawn(async { lsp::statuses() }).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.languages.busy.remove(id);
+                this.languages.statuses = Some(statuses);
+                match result {
+                    Err(failure) => {
+                        this.languages.errors.insert(id, failure);
+                    }
+                    Ok(()) => window.push_notification(tr!("lsp.removed", name = language.name), cx),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn languages_page(&self, cx: &mut Context<Self>) -> SettingPage {
+        let view = cx.entity().downgrade();
+        let mut group = SettingGroup::new().item(SettingItem::render(|_, _, cx| {
+            div().text_sm().text_color(cx.theme().muted_foreground).child(t("lsp.intro"))
+        }));
+        for (index, language) in lsp::LANGUAGES.iter().enumerate() {
+            let status = self.languages.statuses.as_ref().and_then(|statuses| statuses.get(index).cloned());
+            let busy = self.languages.busy.get(language.id).copied();
+            let error = self.languages.errors.get(language.id).map(|failure| failure_text(language, failure));
+            let (install, remove) = (view.clone(), view.clone());
+            let id = language.id;
+            let name = language.name;
+            let line: SharedString = match (&busy, &status) {
+                (Some(Some(step)), _) => step_text(language, *step).into(),
+                (Some(None), _) => t("lsp.removing").into(),
+                (None, None) => t("lsp.checking").into(),
+                (None, Some(status)) => status_text(language, status).into(),
+            };
+            let working = busy.is_some() || status.is_none();
+            let ready = status.as_ref().is_some_and(lsp::Status::ready);
+            let removable = status.as_ref().is_some_and(lsp::Status::any);
+            group = group.item(SettingItem::render(move |_, _, cx| {
+                let (install, remove) = (install.clone(), remove.clone());
+                let failed = error.is_some();
+                h_flex()
+                    .w_full()
+                    .justify_between()
+                    .items_start()
+                    .gap_3()
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .child(Label::new(name).text_sm())
+                            .child(
+                                h_flex()
+                                    .items_start()
+                                    .gap_1p5()
+                                    .text_sm()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .when(working, |row| row.child(div().mt_0p5().child(Spinner::new().small())))
+                                    .child(div().flex_1().min_w_0().child(line.clone())),
+                            )
+                            .when_some(error.clone(), |this, error| this.child(div().mt_1().child(problem(error, cx)))),
+                    )
+                    .when(removable && ready && !failed, |row| {
+                        row.child(
+                            Button::new(SharedString::from(format!("lsp-remove-{id}")))
+                                .outline()
+                                .small()
+                                .label(t("lsp.remove"))
+                                .disabled(working)
+                                .on_click(move |_, window, cx| {
+                                    let view = remove.clone();
+                                    window.open_alert_dialog(cx, move |alert, _, _| {
+                                        let view = view.clone();
+                                        alert
+                                            .title(tr!("lsp.remove_title", name = name))
+                                            .description(t("lsp.remove_body"))
+                                            .show_cancel(true)
+                                            .cancel_text(t("common.cancel"))
+                                            .ok_text(t("lsp.remove_ok"))
+                                            .on_ok(move |_, window, cx| {
+                                                let _ = view.update(cx, |this, cx| this.languages_remove(id, window, cx));
+                                                true
+                                            })
+                                    });
+                                }),
+                        )
+                    })
+                    .when(!ready || failed, |row| {
+                        row.child(
+                            Button::new(SharedString::from(format!("lsp-install-{id}")))
+                                .primary()
+                                .small()
+                                .label(if failed { t("lsp.retry") } else { t("lsp.install") })
+                                .loading(busy.is_some())
+                                .disabled(working)
+                                .on_click(move |_, window, cx| {
+                                    let _ = install.update(cx, |this, cx| this.languages_install(id, window, cx));
+                                }),
+                        )
+                    })
+            }));
+        }
+        SettingPage::new(t("lsp.page")).icon(Icon::new(AssetIcon::SquareTerminal)).group(group)
+    }
+
     fn models_page(&self, cx: &mut Context<Self>) -> SettingPage {
         let workspace = self.workspace.clone();
         let view = cx.entity().downgrade();
@@ -927,6 +1099,46 @@ fn bare_address(address: &str) -> String {
 
 /// What failed and what to do about it — a line under the field it belongs to.
 /// An icon next to the color: the error reads even without color.
+fn status_text(language: &lsp::Language, status: &lsp::Status) -> String {
+    let server = status.server.as_ref().map(|_| language.server);
+    match (server, status.plugin, status.rule) {
+        (Some(server), true, true) => tr!("lsp.ready", server = server),
+        (None, true, _) => tr!("lsp.no_server_plugin_on", server = language.server),
+        (Some(server), plugin, _) => {
+            let missing = match plugin {
+                false if !status.rule => t("lsp.missing_both"),
+                false => t("lsp.missing_plugin"),
+                true => t("lsp.missing_rule"),
+            };
+            tr!("lsp.partial", server = server, missing = missing)
+        }
+        (None, false, _) if status.server_hidden.is_some() => tr!("lsp.hidden", server = language.server),
+        (None, false, _) => tr!("lsp.not_installed", server = language.server),
+    }
+}
+
+fn step_text(language: &lsp::Language, step: lsp::Step) -> String {
+    match step {
+        lsp::Step::Server => tr!("lsp.step_server", server = language.server),
+        lsp::Step::Link => t("lsp.step_link").into(),
+        lsp::Step::Plugin => tr!("lsp.step_plugin", plugin = language.plugin),
+        lsp::Step::Rule => t("lsp.step_rule").into(),
+    }
+}
+
+fn failure_text(language: &lsp::Language, failure: &lsp::Failure) -> SharedString {
+    match failure {
+        lsp::Failure::NoTool(tool) => tr!("lsp.no_tool", tool = tool),
+        lsp::Failure::NoXcode => t("lsp.no_xcode").into(),
+        lsp::Failure::Command(line) if line.is_empty() => tr!("lsp.command_failed", server = language.server),
+        lsp::Failure::Command(line) => tr!("lsp.command_failed_line", server = language.server, line = line),
+        lsp::Failure::NotFound => tr!("lsp.not_found", server = language.server),
+        lsp::Failure::Plugin(line) => tr!("lsp.plugin_failed", plugin = language.plugin, line = line),
+        lsp::Failure::Io(line) => tr!("lsp.io_failed", line = line),
+    }
+    .into()
+}
+
 fn problem(text: SharedString, cx: &App) -> impl IntoElement {
     let color = cx.theme().danger;
     h_flex()
@@ -998,7 +1210,7 @@ fn start_page(requested: Option<usize>) -> SelectIndex {
 
 impl Render for SettingsView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let pages = [self.general(cx), self.models_page(cx), self.folders(), self.sync_page(cx)];
+        let pages = [self.general(cx), self.models_page(cx), self.languages_page(cx), self.folders(), self.sync_page(cx)];
         v_flex()
             .size_full()
             .bg(cx.theme().background)
@@ -1073,6 +1285,7 @@ pub fn open(workspace: WeakEntity<Workspace>, page: Option<usize>, cx: &mut App)
                 workspace,
                 sync: SyncUi { address, phase, busy: false, pushing: false, error: None, server: None, ticks: 0, sent_at: 0 },
                 models: ModelsUi { key, check: Check::Idle, shell_env: false },
+                languages: LanguagesUi { statuses: None, busy: Default::default(), errors: Default::default() },
                 start_page: start_page(page),
                 _subscriptions: subscriptions,
             };
@@ -1086,6 +1299,7 @@ pub fn open(workspace: WeakEntity<Workspace>, page: Option<usize>, cx: &mut App)
             })
             .detach();
             view.sync_refresh(cx);
+            view.languages_refresh(cx);
             if !preset.is_empty() && matches!(view.sync.phase, Phase::Off) {
                 view.sync_connect(window, cx);
             }

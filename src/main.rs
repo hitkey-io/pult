@@ -8,6 +8,7 @@ mod ideas;
 mod code;
 mod dialogs;
 mod journal;
+mod lsp;
 mod migrate;
 mod models;
 mod presence;

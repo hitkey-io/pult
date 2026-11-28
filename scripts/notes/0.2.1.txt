@@ -1,0 +1,1 @@
+Settings → Languages: one button per language installs its language server, makes it visible to every session, turns on the Claude Code plugin and adds a rule that tells sessions to use it. Go, Swift, Rust, TypeScript and JavaScript, Python, C and C++.

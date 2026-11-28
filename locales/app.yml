@@ -1853,3 +1853,97 @@ ideas:
   unknown_tool:
     en: "Unknown tool."
     ru: "Неизвестный инструмент."
+lsp:
+  page:
+    en: "Languages"
+    ru: "Языки"
+  intro:
+    en: "Claude Code understands code through a language server: definitions, references, errors. “Install” puts everything in place at once — the server, Claude Code’s plugin and a rule that makes sessions use it for that language."
+    ru: "Claude Code понимает код через языковой сервер: определения, ссылки, ошибки. «Установить» ставит всё сразу — сервер, плагин Claude Code и правило, которое велит сессиям пользоваться им для этого языка."
+  checking:
+    en: "Checking…"
+    ru: "Проверяю…"
+  ready:
+    en: "Ready · %{server}, plugin and rule are on"
+    ru: "Готово · %{server}, плагин и правило подключены"
+  partial:
+    en: "%{server} is installed · %{missing}"
+    ru: "%{server} есть · %{missing}"
+  missing_both:
+    en: "the plugin is off, no rule"
+    ru: "плагин выключен, правила нет"
+  missing_plugin:
+    en: "the plugin is off"
+    ru: "плагин выключен"
+  missing_rule:
+    en: "no rule — sessions may not use it"
+    ru: "правила нет — сессии могут им не пользоваться"
+  no_server_plugin_on:
+    en: "The plugin is on, but %{server} isn’t found — sessions report “couldn’t start”"
+    ru: "Плагин включён, но %{server} не найден — сессии пишут «couldn’t start»"
+  hidden:
+    en: "%{server} is installed, but sessions don’t see it"
+    ru: "%{server} установлен, но сессии его не видят"
+  not_installed:
+    en: "Not installed · %{server}"
+    ru: "Не установлено · %{server}"
+  step_server:
+    en: "Installing %{server}…"
+    ru: "Устанавливается %{server}…"
+  step_link:
+    en: "Making the server visible to sessions…"
+    ru: "Делаю сервер видимым для сессий…"
+  step_plugin:
+    en: "Turning on the %{plugin} plugin…"
+    ru: "Включаю плагин %{plugin}…"
+  step_rule:
+    en: "Writing the rule…"
+    ru: "Записываю правило…"
+  removing:
+    en: "Turning off…"
+    ru: "Отключаю…"
+  install:
+    en: "Install"
+    ru: "Установить"
+  retry:
+    en: "Retry"
+    ru: "Повторить"
+  remove:
+    en: "Remove…"
+    ru: "Удалить…"
+  remove_title:
+    en: "Turn off %{name}?"
+    ru: "Отключить %{name}?"
+  remove_body:
+    en: "The plugin is turned off and the rule is deleted. The server and the language’s tools stay installed."
+    ru: "Плагин выключится, правило удалится. Сам сервер и инструменты языка останутся."
+  remove_ok:
+    en: "Turn off"
+    ru: "Отключить"
+  done:
+    en: "%{name} is ready. Running sessions pick it up after a restart."
+    ru: "%{name} готов. Работающие сессии подхватят его после перезапуска."
+  removed:
+    en: "%{name} is turned off."
+    ru: "%{name} отключён."
+  no_tool:
+    en: "%{tool} isn’t found. Install it and press “Retry”."
+    ru: "Не найден %{tool}. Установите его и нажмите «Повторить»."
+  no_xcode:
+    en: "Xcode’s Command Line Tools are missing. Finish installing them in the window that opened and press “Retry”."
+    ru: "Нет Command Line Tools от Xcode. Завершите их установку в открывшемся окне и нажмите «Повторить»."
+  command_failed:
+    en: "Installing %{server} failed."
+    ru: "Не удалось установить %{server}."
+  command_failed_line:
+    en: "Installing %{server} failed: %{line}"
+    ru: "Не удалось установить %{server}: %{line}"
+  not_found:
+    en: "%{server} was installed but isn’t found. Press “Retry”."
+    ru: "%{server} установлен, но не найден. Нажмите «Повторить»."
+  plugin_failed:
+    en: "Claude Code didn’t turn on %{plugin}. %{line}"
+    ru: "Claude Code не включил %{plugin}. %{line}"
+  io_failed:
+    en: "Couldn’t write the file: %{line}"
+    ru: "Не удалось записать файл: %{line}"
