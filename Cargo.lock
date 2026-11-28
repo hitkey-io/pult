@@ -4851,7 +4851,7 @@ dependencies = [
 
 [[package]]
 name = "pult"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "alacritty_terminal",
  "dirs 5.0.1",
