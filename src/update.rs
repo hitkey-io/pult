@@ -300,15 +300,19 @@ fn prepare(dmg: &Path, release: &Release, bundle: &Path) -> Result<PathBuf, Stri
     Ok(staged)
 }
 
-/// Swap script: waits for Pult to quit, puts the new app in place of the old one and opens it.
-/// If that fails, the old app is put back.
+/// Swap script: waits for Pult to quit, puts the new app in place of the old one, refreshes its icon for the Dock
+/// and Finder and opens it. If the swap fails, the old app is put back.
 const SWAP: &str = r#"
 pid=$1; old=$2; new=$3
 while kill -0 "$pid" 2>/dev/null; do sleep 0.2; done
 if mv "$old" "$old.pult-old"; then
   if mv "$new" "$old"; then rm -rf "$old.pult-old"; else mv "$old.pult-old" "$old"; fi
 fi
+# The Dock and Finder keep the old icon until LaunchServices sees the bundle anew.
+touch "$old"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$old" >/dev/null 2>&1
 open "$old"
+killall Dock >/dev/null 2>&1
 "#;
 
 fn swap(bundle: &Path, staged: &Path) -> Result<(), String> {
