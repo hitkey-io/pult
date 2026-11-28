@@ -1,9 +1,10 @@
 {
-  "version": "0.1.8",
-  "sha256": "69f01a8af09bf660c39e3c1acfa50f6c8e50fd1b4ae95fc6a1c19207ed8279f5",
-  "size": 15854169,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.1.8/Pult-0.1.8.dmg",
+  "version": "0.2.0",
+  "sha256": "0a14705aa701938d4190cf9b08c64798291a16ddf94c77e3fdda13d5370dafd3",
+  "size": 15878199,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.0/Pult-0.2.0.dmg",
   "notes": [
-    "New app icon: a neon green robot on black."
+    "Each project now has its own models: Claude or GLM. Switch one from the chip in the title bar or the project menu; Settings → Models moves every project at once.",
+    "After an update the Dock and Finder show the new app icon right away."
   ]
 }
