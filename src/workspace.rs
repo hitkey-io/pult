@@ -157,6 +157,9 @@ pub struct Workspace {
     memory: HashMap<u32, u64>,
     /// Projects whose session is starting right now.
     starting: HashSet<String>,
+    /// Projects whose session restarts as soon as its turn ends: a language server was installed or removed,
+    /// and Claude Code reads plugins and rules only when a session starts.
+    restart_when_free: HashSet<String>,
     /// Error from the last session start — shown in the placeholder.
     errors: HashMap<String, (Failure, String)>,
     /// Session started right in the project terminal (the folder wasn't trusted yet, or a pick from
@@ -282,6 +285,7 @@ impl Workspace {
             bound_here: HashSet::new(),
             memory: HashMap::new(),
             starting: HashSet::new(),
+            restart_when_free: HashSet::new(),
             program_status: HashMap::new(),
             errors: HashMap::new(),
             pending_bind: HashMap::new(),
@@ -1438,6 +1442,7 @@ impl Workspace {
             self.enforce_names(cx);
             cx.notify();
         }
+        self.restart_freed(cx);
     }
 
     /// Lay the registry over the list. A pid whose start time isn't the one the list was read with is another
@@ -1990,6 +1995,84 @@ impl Workspace {
             .session()
             .and_then(|session| self.agent(session))
             .is_some_and(|agent| agent.is_background() && agent.id.is_some() && agent.activity() != Activity::Stopped)
+    }
+
+    /// A language server was installed or removed (Settings → Languages): the running sessions of Pult's projects
+    /// restart so they pick it up — idle ones now, the others as soon as their turn ends (a turn isn't cut off).
+    /// Returns how many restart now and how many wait.
+    pub(crate) fn restart_for_tools(&mut self, cx: &mut Context<Self>) -> (usize, usize) {
+        let (mut now, mut later) = (Vec::new(), Vec::new());
+        for project in self.projects.iter().filter(|project| self.can_restart(project)) {
+            match self.activity(project) {
+                Some(Activity::Ready) => now.push(project.id().to_string()),
+                _ => later.push(project.id().to_string()),
+            }
+        }
+        for id in &now {
+            self.restart_quietly(id, cx);
+        }
+        let counts = (now.len(), later.len());
+        self.restart_when_free.extend(later);
+        counts
+    }
+
+    /// Restart the sessions that were waiting for their turn to end.
+    fn restart_freed(&mut self, cx: &mut Context<Self>) {
+        if self.restart_when_free.is_empty() {
+            return;
+        }
+        let mut free = Vec::new();
+        let mut gone = Vec::new();
+        for id in &self.restart_when_free {
+            match self.projects.iter().find(|project| project.id() == id) {
+                Some(project) if self.can_restart(project) => {
+                    if self.activity(project) == Some(Activity::Ready) {
+                        free.push(id.clone());
+                    }
+                }
+                _ => gone.push(id.clone()),
+            }
+        }
+        for id in gone.iter().chain(&free) {
+            self.restart_when_free.remove(id);
+        }
+        for id in free {
+            self.restart_quietly(&id, cx);
+        }
+    }
+
+    /// `restart_session` without the question and the notification: the caller has told the person already.
+    fn restart_quietly(&mut self, id: &str, cx: &mut Context<Self>) {
+        let Some(project) = self.project(id).cloned() else {
+            return;
+        };
+        let Some(agent) = project.session().and_then(|session| self.agent(session)).cloned() else {
+            return;
+        };
+        let Some(short) = agent.id.clone() else {
+            return;
+        };
+        if !self.starting.insert(id.to_string()) {
+            return;
+        }
+        self.terminal.update(cx, |terminal, cx| terminal.close(id, cx));
+        self.errors.remove(id);
+        let (id, pid) = (id.to_string(), agent.pid);
+        cx.spawn(async move |this, cx| {
+            let result = cx.background_spawn(async move { sessions::restart(&short, pid) }).await;
+            let _ = this.update(cx, |this, cx| {
+                let id = this.live_key(&id);
+                this.starting.remove(&id);
+                if let Err(StartError::Failed(message)) = result {
+                    this.errors.insert(id.clone(), (Failure::Resume, message));
+                }
+                this.sync_terminal(cx);
+                this.refresh(cx);
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
     }
 
     fn restart_current(&mut self, _: &RestartSession, window: &mut Window, cx: &mut Context<Self>) {

@@ -1930,8 +1930,23 @@ lsp:
     en: "Remove"
     ru: "Удалить"
   done:
-    en: "%{name} is ready. Running sessions pick it up after a restart."
-    ru: "%{name} готов. Работающие сессии подхватят его после перезапуска."
+    en: "%{name} is ready."
+    ru: "%{name} готов."
+  restart_pick:
+    en: "Restarting sessions so they pick it up"
+    ru: "Перезапускаю сессии, чтобы они его подхватили"
+  restart_drop:
+    en: "Restarting sessions so they let it go"
+    ru: "Перезапускаю сессии, чтобы они его отпустили"
+  restart_now:
+    en: "now — %{now}"
+    ru: "сейчас — %{now}"
+  restart_later:
+    en: "when their turn ends — %{later}"
+    ru: "как закончат ход — %{later}"
+  restart_both:
+    en: "now — %{now}, when their turn ends — %{later}"
+    ru: "сейчас — %{now}, как закончат ход — %{later}"
   removed:
     en: "%{name} is removed."
     ru: "%{name} удалён."

@@ -815,7 +815,10 @@ impl SettingsView {
                     Some(failure) => {
                         this.languages.errors.insert(id, failure);
                     }
-                    None => window.push_notification(tr!("lsp.done", name = language.name), cx),
+                    None => {
+                        let restarted = this.languages_restart(cx);
+                        window.push_notification(restart_note(tr!("lsp.done", name = language.name), "lsp.restart_pick", restarted), cx)
+                    }
                 }
                 cx.notify();
             });
@@ -842,7 +845,7 @@ impl SettingsView {
                         this.languages.errors.insert(id, failure);
                     }
                     Ok(stays) => window.push_notification(
-                        match stays {
+                        restart_note(match stays {
                             None => tr!("lsp.removed", name = language.name),
                             Some(reason) => {
                                 let why = match reason {
@@ -851,7 +854,7 @@ impl SettingsView {
                                 };
                                 tr!("lsp.removed_kept", name = language.name, server = language.server, why = why)
                             }
-                        },
+                        }, "lsp.restart_drop", this.languages_restart(cx)),
                         cx,
                     ),
                 }
@@ -859,6 +862,11 @@ impl SettingsView {
             });
         })
         .detach();
+    }
+
+    /// Claude Code reads plugins and rules when a session starts: running sessions restart to see the change.
+    fn languages_restart(&mut self, cx: &mut Context<Self>) -> (usize, usize) {
+        self.workspace.update(cx, |workspace, cx| workspace.restart_for_tools(cx)).unwrap_or_default()
     }
 
     fn languages_page(&self, cx: &mut Context<Self>) -> SettingPage {
@@ -1119,6 +1127,20 @@ fn bare_address(address: &str) -> String {
 
 /// What failed and what to do about it — a line under the field it belongs to.
 /// An icon next to the color: the error reads even without color.
+/// The install or removal message, with how many sessions restart now and after their turn.
+fn restart_note(head: String, key: &str, (now, later): (usize, usize)) -> String {
+    if now + later == 0 {
+        return head;
+    }
+    let tail = match (now, later) {
+        (now, 0) => tr!("lsp.restart_now", now = now),
+        (0, later) => tr!("lsp.restart_later", later = later),
+        (now, later) => tr!("lsp.restart_both", now = now, later = later),
+    };
+    let lead = if key == "lsp.restart_drop" { t("lsp.restart_drop") } else { t("lsp.restart_pick") };
+    format!("{head} {lead}: {tail}.")
+}
+
 fn status_text(language: &lsp::Language, status: &lsp::Status) -> String {
     let server = status.server.as_ref().map(|_| language.server);
     match (server, status.plugin, status.rule) {

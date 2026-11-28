@@ -1,0 +1,1 @@
+Settings → Languages: after “Install” or “Remove…” the running sessions of your projects restart on their own so they pick the change up at once — idle ones right away, busy ones as soon as their turn ends. The conversation goes on.
