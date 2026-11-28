@@ -1,10 +1,9 @@
 {
-  "version": "0.2.0",
-  "sha256": "0a14705aa701938d4190cf9b08c64798291a16ddf94c77e3fdda13d5370dafd3",
-  "size": 15878199,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.0/Pult-0.2.0.dmg",
+  "version": "0.2.1",
+  "sha256": "9510e3e9554084b0585279a35045ddb24a9e16b73ce4622e13e6d7288dbebce5",
+  "size": 15938851,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.1/Pult-0.2.1.dmg",
   "notes": [
-    "Each project now has its own models: Claude or GLM. Switch one from the chip in the title bar or the project menu; Settings → Models moves every project at once.",
-    "After an update the Dock and Finder show the new app icon right away."
+    "Settings → Languages: one button per language installs its language server, makes it visible to every session, turns on the Claude Code plugin and adds a rule that tells sessions to use it. Go, Swift, Rust, TypeScript and JavaScript, Python, C and C++."
   ]
 }
