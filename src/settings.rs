@@ -6,7 +6,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Sizable as _, StyledExt as _, TitleBar, WindowExt as _,
-    button::{Button, ButtonVariants as _},
+    button::{Button, ButtonVariant, ButtonVariants as _},
     h_flex,
     alert::Alert,
     input::{Input, InputEvent, InputState, OtpEvent, OtpInput, OtpState},
@@ -841,7 +841,19 @@ impl SettingsView {
                     Err(failure) => {
                         this.languages.errors.insert(id, failure);
                     }
-                    Ok(()) => window.push_notification(tr!("lsp.removed", name = language.name), cx),
+                    Ok(stays) => window.push_notification(
+                        match stays {
+                            None => tr!("lsp.removed", name = language.name),
+                            Some(reason) => {
+                                let why = match reason {
+                                    lsp::Stays::Xcode => t("lsp.stays_xcode"),
+                                    lsp::Stays::Foreign => t("lsp.stays_foreign"),
+                                };
+                                tr!("lsp.removed_kept", name = language.name, server = language.server, why = why)
+                            }
+                        },
+                        cx,
+                    ),
                 }
                 cx.notify();
             });
@@ -870,6 +882,8 @@ impl SettingsView {
             let working = busy.is_some() || status.is_none();
             let ready = status.as_ref().is_some_and(lsp::Status::ready);
             let removable = status.as_ref().is_some_and(lsp::Status::any);
+            // Why the server will stay when removed: said in the window before the user agrees.
+            let stays = status.as_ref().and_then(|status| status.stays);
             group = group.item(SettingItem::render(move |_, _, cx| {
                 let (install, remove) = (install.clone(), remove.clone());
                 let failed = error.is_some();
@@ -903,14 +917,20 @@ impl SettingsView {
                                 .disabled(working)
                                 .on_click(move |_, window, cx| {
                                     let view = remove.clone();
+                                    let body = SharedString::from(match stays {
+                                        None => tr!("lsp.remove_body", server = language.server),
+                                        Some(lsp::Stays::Xcode) => tr!("lsp.remove_body_xcode", server = language.server),
+                                        Some(lsp::Stays::Foreign) => tr!("lsp.remove_body_foreign", server = language.server),
+                                    });
                                     window.open_alert_dialog(cx, move |alert, _, _| {
                                         let view = view.clone();
                                         alert
                                             .title(tr!("lsp.remove_title", name = name))
-                                            .description(t("lsp.remove_body"))
+                                            .description(body.clone())
                                             .show_cancel(true)
                                             .cancel_text(t("common.cancel"))
                                             .ok_text(t("lsp.remove_ok"))
+                                            .ok_variant(ButtonVariant::Danger)
                                             .on_ok(move |_, window, cx| {
                                                 let _ = view.update(cx, |this, cx| this.languages_remove(id, window, cx));
                                                 true
@@ -1103,6 +1123,7 @@ fn status_text(language: &lsp::Language, status: &lsp::Status) -> String {
     let server = status.server.as_ref().map(|_| language.server);
     match (server, status.plugin, status.rule) {
         (Some(server), true, true) => tr!("lsp.ready", server = server),
+        (Some(server), false, false) => tr!("lsp.not_connected", server = server),
         (None, true, _) => tr!("lsp.no_server_plugin_on", server = language.server),
         (Some(server), plugin, _) => {
             let missing = match plugin {

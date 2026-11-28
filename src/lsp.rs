@@ -80,6 +80,17 @@ pub struct Status {
     pub server_hidden: Option<PathBuf>,
     pub plugin: bool,
     pub rule: bool,
+    /// Why "Remove" will leave the server in place (`None`: it goes away, or there is none).
+    pub stays: Option<Stays>,
+}
+
+/// Why "Remove" leaves the server where it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stays {
+    /// Part of Xcode or its Command Line Tools.
+    Xcode,
+    /// Installed by something else (Homebrew…): not where the language's own installer puts it.
+    Foreign,
 }
 
 impl Status {
@@ -228,21 +239,41 @@ fn plugins() -> Vec<Plugin> {
     plugins_from(&output.stdout)
 }
 
-fn enabled_plugins() -> Vec<String> {
-    plugins().into_iter().filter(|plugin| plugin.enabled).map(|plugin| plugin.id).collect()
+/// The status of one language.
+fn status(language: &Language, plugins: &[Plugin]) -> Status {
+    let server = on_path(language);
+    // Xcode's servers are never taken away, so where exactly they live isn't needed.
+    let home = if matches!(language.source, Source::Xcode) { None } else { installed_at(language) };
+    let stays = stays_with(language.source, server.as_deref(), home.as_deref());
+    let server_hidden = if server.is_none() { home.clone() } else { None };
+    let id = plugin_id(language);
+    Status {
+        server,
+        server_hidden,
+        plugin: plugins.iter().any(|plugin| plugin.enabled && plugin.id == id),
+        rule: rule_path(language).exists(),
+        stays,
+    }
 }
 
 /// The status of every language (slow: starts shells and `claude`; not on the window's thread).
 pub fn statuses() -> Vec<Status> {
-    let plugins = enabled_plugins();
-    LANGUAGES
-        .iter()
-        .map(|language| {
-            let server = on_path(language);
-            let server_hidden = if server.is_none() { installed_at(language) } else { None };
-            Status { server, server_hidden, plugin: plugins.contains(&plugin_id(language)), rule: rule_path(language).exists() }
-        })
-        .collect()
+    let plugins = plugins();
+    LANGUAGES.iter().map(|language| status(language, &plugins)).collect()
+}
+
+/// Why "Remove" leaves the server where it is: `None` when there is none to leave or it goes away.
+fn stays_with(source: Source, found: Option<&Path>, home: Option<&Path>) -> Option<Stays> {
+    let found = found?;
+    if matches!(source, Source::Xcode) {
+        return Some(Stays::Xcode);
+    }
+    // The same file the language's installer made (a link to it counts); Homebrew's copy doesn't.
+    let same = home.is_some_and(|home| match (found.canonicalize(), home.canonicalize()) {
+        (Ok(found), Ok(home)) => found == home,
+        _ => found == home,
+    });
+    (!same).then_some(Stays::Foreign)
 }
 
 /// One step of "Install". Steps that are already done return at once, so "Retry" starts from the beginning.
@@ -372,11 +403,28 @@ fn write_rule(language: &Language) -> Result<(), Failure> {
     std::fs::write(&path, rule_text(language)).map_err(|error| Failure::Io(error.to_string()))
 }
 
-/// "Remove": the plugin is turned off, the rule and our link are deleted. The server and the language's tools stay.
-pub fn remove(language: &Language) -> Result<(), Failure> {
+/// Take the server away the way it was put in. Xcode's servers are never touched.
+fn uninstall_server(language: &Language) -> Result<(), Failure> {
+    match language.source {
+        Source::Go(_) => {
+            let path = installed_at(language).ok_or(Failure::NotFound)?;
+            std::fs::remove_file(&path).map_err(|error| Failure::Io(error.to_string()))
+        }
+        Source::Rustup(component) => run(&format!("rustup component remove {component}")).map(|_| ()),
+        Source::Npm(packages) => run(&format!("npm uninstall -g {}", packages.join(" "))).map(|_| ()),
+        Source::Xcode => Ok(()),
+    }
+}
+
+/// "Remove": everything "Install" put in place — the plugin (uninstalled, not only turned off), the rule, our link
+/// and the server. The language's own tools stay, and so does a server that isn't Pult's to take: Xcode's, or one
+/// installed by something else. What stayed is returned for the message.
+pub fn remove(language: &Language) -> Result<Option<Stays>, Failure> {
+    let plugins = plugins();
+    let status = status(language, &plugins);
     let id = plugin_id(language);
-    if enabled_plugins().contains(&id) {
-        claude(&["plugin", "disable", &id, "--scope", "user"])?;
+    if plugins.iter().any(|plugin| plugin.id == id) {
+        claude(&["plugin", "uninstall", &id, "--scope", "user"])?;
     }
     let rule = rule_path(language);
     if rule.exists() {
@@ -386,7 +434,12 @@ pub fn remove(language: &Language) -> Result<(), Failure> {
     if std::fs::read_link(&link).is_ok() {
         std::fs::remove_file(&link).map_err(|error| Failure::Io(error.to_string()))?;
     }
-    Ok(())
+    // The server goes away from where the language's installer puts it. A copy that sessions use from elsewhere
+    // (Homebrew's, another Node) is not Pult's and stays — the window said so before the user agreed.
+    if !matches!(language.source, Source::Xcode) && installed_at(language).is_some() {
+        uninstall_server(language)?;
+    }
+    Ok(status.stays)
 }
 
 #[cfg(test)]
@@ -445,6 +498,37 @@ mod tests {
         }
         for (language, status) in LANGUAGES.iter().zip(statuses()) {
             println!("{:<12} ready={} {:?}", language.id, status.ready(), status);
+        }
+    }
+
+    #[test]
+    fn a_server_stays_only_when_it_is_xcodes_or_someone_elses() {
+        let mine = Path::new("/home/me/go/bin/gopls");
+        let brew = Path::new("/opt/homebrew/bin/gopls");
+        assert_eq!(stays_with(Source::Go("x"), Some(mine), Some(mine)), None);
+        assert_eq!(stays_with(Source::Go("x"), None, Some(mine)), None, "installed, hidden — goes away");
+        assert_eq!(stays_with(Source::Go("x"), Some(brew), Some(mine)), Some(Stays::Foreign));
+        assert_eq!(stays_with(Source::Go("x"), Some(brew), None), Some(Stays::Foreign));
+        assert_eq!(stays_with(Source::Go("x"), None, None), None, "nothing to remove");
+        assert_eq!(stays_with(Source::Xcode, Some(Path::new("/usr/bin/sourcekit-lsp")), None), Some(Stays::Xcode));
+    }
+
+    /// Removes for real on this computer: `PULT_LSP=python cargo test live_remove -- --ignored`.
+    #[test]
+    #[ignore]
+    fn live_remove() {
+        for id in std::env::var("PULT_LSP").unwrap_or_default().split(',').filter(|id| !id.is_empty()) {
+            let language = language(id).expect("known language");
+            let stays = remove(language).unwrap_or_else(|failure| panic!("{id}: {failure:?}"));
+            let after = status(language, &plugins());
+            println!("{:<12} stays={stays:?} plugin={} rule={} server={:?}", language.id, after.plugin, after.rule, after.server);
+            assert!(!after.plugin && !after.rule, "the plugin and the rule are gone");
+            if stays.is_none() {
+                assert!(after.server.is_none() && after.server_hidden.is_none(), "the server is gone");
+            }
+            if !matches!(language.source, Source::Xcode) {
+                assert!(installed_at(language).is_none(), "the copy the language's installer made is gone");
+            }
         }
     }
 

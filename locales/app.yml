@@ -1858,8 +1858,8 @@ lsp:
     en: "Languages"
     ru: "Языки"
   intro:
-    en: "Claude Code understands code through a language server: definitions, references, errors. “Install” puts everything in place at once — the server, Claude Code’s plugin and a rule that makes sessions use it for that language."
-    ru: "Claude Code понимает код через языковой сервер: определения, ссылки, ошибки. «Установить» ставит всё сразу — сервер, плагин Claude Code и правило, которое велит сессиям пользоваться им для этого языка."
+    en: "Claude Code understands code through a language server: definitions, references, errors. “Install” puts everything in place at once — the server, Claude Code’s plugin and a rule that makes sessions use it for that language. “Remove…” takes all of it away."
+    ru: "Claude Code понимает код через языковой сервер: определения, ссылки, ошибки. «Установить» ставит всё сразу — сервер, плагин Claude Code и правило, которое велит сессиям пользоваться им для этого языка. «Удалить…» убирает всё это."
   checking:
     en: "Checking…"
     ru: "Проверяю…"
@@ -1887,6 +1887,9 @@ lsp:
   not_installed:
     en: "Not installed · %{server}"
     ru: "Не установлено · %{server}"
+  not_connected:
+    en: "Not connected · %{server} is already installed"
+    ru: "Не подключено · %{server} уже установлен"
   step_server:
     en: "Installing %{server}…"
     ru: "Устанавливается %{server}…"
@@ -1912,20 +1915,35 @@ lsp:
     en: "Remove…"
     ru: "Удалить…"
   remove_title:
-    en: "Turn off %{name}?"
-    ru: "Отключить %{name}?"
+    en: "Remove %{name} support?"
+    ru: "Удалить поддержку %{name}?"
   remove_body:
-    en: "The plugin is turned off and the rule is deleted. The server and the language’s tools stay installed."
-    ru: "Плагин выключится, правило удалится. Сам сервер и инструменты языка останутся."
+    en: "The Claude Code plugin, the rule and the %{server} server will be removed. The language and its tools stay."
+    ru: "Плагин Claude Code, правило и сервер %{server} будут удалены. Язык и его инструменты останутся."
+  remove_body_xcode:
+    en: "The Claude Code plugin and the rule will be removed. %{server} is part of Xcode and stays."
+    ru: "Плагин Claude Code и правило будут удалены. %{server} входит в Xcode и останется."
+  remove_body_foreign:
+    en: "The Claude Code plugin and the rule will be removed. %{server} wasn’t installed by Pult and stays."
+    ru: "Плагин Claude Code и правило будут удалены. %{server} установлен не через Пульт и останется."
   remove_ok:
-    en: "Turn off"
-    ru: "Отключить"
+    en: "Remove"
+    ru: "Удалить"
   done:
     en: "%{name} is ready. Running sessions pick it up after a restart."
     ru: "%{name} готов. Работающие сессии подхватят его после перезапуска."
   removed:
-    en: "%{name} is turned off."
-    ru: "%{name} отключён."
+    en: "%{name} is removed."
+    ru: "%{name} удалён."
+  removed_kept:
+    en: "%{name} is removed. %{server} stays: %{why}"
+    ru: "%{name} удалён. %{server} остался: %{why}"
+  stays_xcode:
+    en: "it is part of Xcode"
+    ru: "входит в Xcode"
+  stays_foreign:
+    en: "it wasn’t installed by Pult"
+    ru: "установлен не через Пульт"
   no_tool:
     en: "%{tool} isn’t found. Install it and press “Retry”."
     ru: "Не найден %{tool}. Установите его и нажмите «Повторить»."
