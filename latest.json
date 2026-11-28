@@ -1,9 +1,9 @@
 {
-  "version": "0.2.1",
-  "sha256": "9510e3e9554084b0585279a35045ddb24a9e16b73ce4622e13e6d7288dbebce5",
-  "size": 15938851,
-  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.1/Pult-0.2.1.dmg",
+  "version": "0.2.2",
+  "sha256": "6f32248f28d62026dbefe0887d3b8a7a40956615953562726215f302a80c2a7b",
+  "size": 15935892,
+  "url": "https://github.com/hitkey-io/pult/releases/download/v0.2.2/Pult-0.2.2.dmg",
   "notes": [
-    "Settings → Languages: one button per language installs its language server, makes it visible to every session, turns on the Claude Code plugin and adds a rule that tells sessions to use it. Go, Swift, Rust, TypeScript and JavaScript, Python, C and C++."
+    "Settings → Languages: the Claude Code plugin is now installed when it is missing. For a language whose plugin was not installed yet, “Install” used to stop with “didn’t turn on”."
   ]
 }
